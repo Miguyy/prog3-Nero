@@ -1,3 +1,14 @@
+// paleta de cores
+color HUD_CREAM, 
+      HUD_LIGHTPINK, 
+      HUD_PINK,
+      HUD_YELLOW,
+      HUD_STEELBLUE,
+      HUD_PURPLE,
+      HUD_RED,
+      HUD_BLUE,
+      HUD_BLACK;
+
 final int MENU = 0;
 final int GAME = 1;
 final int SCORE = 2;
@@ -23,6 +34,16 @@ void setup() {
   fullScreen(P2D);
   frameRate(60);
   noCursor();
+
+  HUD_CREAM  = color(255, 228, 206);
+  HUD_LIGHTPINK  = color(236, 128, 180);
+  HUD_PINK  = color(217, 74, 145);
+  HUD_YELLOW  = color(242, 208, 160);
+  HUD_STEELBLUE = color(129, 153, 201);
+  HUD_PURPLE  = color(40, 28, 51);
+  HUD_RED  = color(215, 30, 70);
+  HUD_BLUE  = color(94, 209, 228);
+  HUD_BLACK  = color(40, 28, 51);
 
   loadFonts();
   loadBackground();
@@ -67,6 +88,10 @@ void draw() {
   drawHandCursor();
 }
 
+float loseFloorStartY = 100;
+float loseFloorTargetY;
+float losePlayerStartX, losePlayerTargetX;
+
 void changeState(int newState) {
   previousState = currentState;
   currentState = newState;
@@ -74,13 +99,22 @@ void changeState(int newState) {
   resetDwellState();
   playMusicForState(newState);
   if (newState == LOSE) {
+    player.jumping = false;
+    player.crouching = false;
+    player.velY = 0;
+    player.y = groundY;
+
+    losePlayerStartX = player.x;
+    losePlayerTargetX = width / 2 - (player.defaultImg.width * player.scale) / 2;
+    loseFloorTargetY = height / 2 - floorImg.height + 100;
+
     submitScore(score, level);
   }
 }
 
 void loadFonts() {
-  uiFont = createFont("Arial Bold", 24);
-  titleFont = createFont("Arial Bold", 48);
+  uiFont = createFont("Silkscreen-Regular.ttf", 24);
+  titleFont = createFont("Silkscreen-Regular.ttf", 48);
   textFont(uiFont);
 }
 
@@ -121,6 +155,8 @@ void mouseReleased() {
 void keyPressed() {
   if (keyCode == UP) fallbackUpHeld = true;
   if (keyCode == DOWN) fallbackDownHeld = true;
+
+  if (key == 'w' || key == 'W') changeState(WIN); // atalho de debug -- tirar antes de entregar
 }
 
 void keyReleased() {

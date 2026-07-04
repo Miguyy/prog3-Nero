@@ -2,22 +2,20 @@ import java.awt.Rectangle;
 
 color bgColor = color(40, 28, 51);
 
-PImage skyImg, floorImg, cloudsImg;
+PImage skyImg, floorImg, cloudsImg, kinectPreviewImg;
 ScrollingImage clouds;
 
 PImage[] bubbleImgs = new PImage[4];
 int nextBubbleIndex = 0;
 ArrayList<Obstacle> obstacles = new ArrayList<Obstacle>();
 
-float obstacleSpeed = 3;
-float spawnInterval = 150;
+float obstacleSpeed = 20;
+float spawnInterval = 2;
 float spawnTimer = 0;
 
 float topRowY = 750;
 float bottomRowY = 900;
 
-// Player + level state
-PImage playerIdleImg, playerJumpImg, playerCrouchImg;
 Player player;
 float groundY;
 
@@ -25,21 +23,29 @@ final float JUMP_VELOCITY = -18;
 final float GRAVITY = 0.9;
 
 int levelTimer = 0;
-final int LEVEL_DURATION_FRAMES = 60 * 45; // 45s survival to win -- placeholder, tune via playtest
+final int LEVEL_DURATION_FRAMES = 60 * 45;
 final float SPEED_GROWTH = 1.15;
 final float INTERVAL_SHRINK = 0.9;
 final float MAX_SPEED = 12;
 final float MIN_INTERVAL = 45;
 
 // Kinect preview HUD box (top-left)
-final color HUD_BODY = #FFE4CE;
-final color HUD_PINK = #EC80B4;
-float hudX = 20, hudY = 20, hudW = 260, hudH = 200, hudHeaderH = 34;
+float hudX, hudY, hudW, hudH, hudHeaderH = 34;
+float hudMarginX, hudMarginY;
 
 void loadBackground() {
+  hudMarginX = width * 0.04;
+  hudMarginY = height * 0.035;
+
+  hudX = hudMarginX;
+  hudY = hudMarginY;
+  hudW = width * 0.30;
+  hudH = height * 0.42;
+
   skyImg = loadImage("sky.png");
   floorImg = loadImage("floor.png");
   cloudsImg = loadImage("clouds.png");
+  kinectPreviewImg = loadImage("kinect.png");
 
   clouds = new ScrollingImage(cloudsImg, 50, 0.8);
 
@@ -48,12 +54,9 @@ void loadBackground() {
   bubbleImgs[2] = loadImage("bolhas-3.png");
   bubbleImgs[3] = loadImage("bolhas-4.png");
 
-  playerIdleImg = loadImage("default.png");
-  playerCrouchImg = loadImage("crouch.png");
-  // playerJumpImg = loadImage("player_jump.png"); // TODO: uncomment once player_jump.png is added to data/
-
   groundY = bottomRowY + 90;
-  player = new Player(width * 0.15);
+  player = new Player(width * 0.08);
+  player.load();
 }
 
 void drawBackground() {
@@ -121,7 +124,7 @@ void startNextLevel() {
 void resetGameFull() {
   level = 1;
   score = 0;
-  obstacleSpeed = 3;
+  obstacleSpeed = 20;
   spawnInterval = 150;
   obstacles.clear();
   spawnTimer = 0;
@@ -173,25 +176,32 @@ boolean checkCollisions(Player p) {
 }
 
 void drawKinectPreview() {
-  noStroke();
-  fill(HUD_BODY);
-  rect(hudX, hudY + hudHeaderH, hudW, hudH - hudHeaderH);
+  if (kinectPreviewImg == null) return;
 
-  fill(HUD_PINK);
-  rect(hudX, hudY, hudW, hudHeaderH);
+  float maxW = hudW;
+  float maxH = hudH;
 
-  noFill();
-  stroke(HUD_PINK);
-  strokeWeight(3);
-  rect(hudX, hudY, hudW, hudH);
+  float imgRatio = kinectPreviewImg.width / (float) kinectPreviewImg.height;
 
-  noStroke();
-  fill(0);
-  textFont(uiFont);
-  textAlign(CENTER, CENTER);
-  text("IT'S YOU!", hudX + hudW / 2, hudY + hudHeaderH / 2);
+  float boxW = maxW;
+  float boxH = boxW / imgRatio;
 
-  drawSkeletonSilhouette(hudX, hudY + hudHeaderH, hudW, hudH - hudHeaderH);
+  if (boxH > maxH) {
+    boxH = maxH;
+    boxW = boxH * imgRatio;
+  }
+
+  image(kinectPreviewImg, hudX, hudY, boxW, boxH);
+
+  float headerRatio = 0.13;
+  float bodyBottomPad = 0.03;
+
+  float bodyX = hudX;
+  float bodyY = hudY + boxH * headerRatio;
+  float bodyW = boxW;
+  float bodyH = boxH * (1 - headerRatio - bodyBottomPad);
+
+  drawSkeletonSilhouette(bodyX, bodyY, bodyW, bodyH);
 }
 
 void drawSkeletonSilhouette(float bx, float by, float bw, float bh) {
@@ -218,9 +228,10 @@ void drawJointBlob(PVector[] joints, int idx, float bx, float by, float bw, floa
 
 void drawGameHUD() {
   textFont(uiFont);
-  fill(255);
+  textSize(height * 0.035);
+  fill(HUD_CREAM);
   textAlign(RIGHT, TOP);
-  text("LEVEL " + level + "   " + score + " PTS", width - 20, 20);
+  text("LEVEL " + level + "   " + score + " PTS", width - hudMarginX, hudMarginY);
 }
 
 class Scrollable {
@@ -280,15 +291,22 @@ class Obstacle extends Scrollable {
 }
 
 class Player {
+  PImage defaultImg, crouchImg;
   float x;
   float y;
   float velY = 0;
   boolean jumping = false;
   boolean crouching = false;
+  float scale = 0.2;
 
   Player(float x) {
     this.x = x;
     this.y = groundY;
+  }
+
+  void load() {
+    defaultImg = loadImage("default.png");
+    crouchImg = loadImage("crouch.png");
   }
 
   void update() {
@@ -313,26 +331,27 @@ class Player {
   }
 
   PImage currentSprite() {
-    // player_jump.png hasn't been delivered yet -- fall back to the idle pose
-    // rather than NPE-ing every frame while jumping.
-    if (jumping) return (playerJumpImg != null) ? playerJumpImg : playerIdleImg;
-    if (crouching) return playerCrouchImg;
-    return playerIdleImg;
+    if (crouching) return crouchImg;
+    return defaultImg;
   }
 
   void display() {
     PImage s = currentSprite();
-    image(s, x, y - s.height);
+    float w = s.width * scale;
+    float h = s.height * scale;
+    image(s, x, y - h, w, h);
   }
 
   Rectangle getHitbox() {
     PImage s = currentSprite();
-    float inset = s.width * 0.2;
+    float w = s.width * scale;
+    float h = s.height * scale;
+    float inset = w * 0.2;
     return new Rectangle(
       (int)(x + inset),
-      (int)(y - s.height + inset),
-      (int)(s.width - 2 * inset),
-      (int)(s.height - 2 * inset)
-      );
+      (int)(y - h + inset),
+      (int)(w - 2 * inset),
+      (int)(h - 2 * inset)
+    );
   }
 }

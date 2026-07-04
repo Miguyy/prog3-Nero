@@ -1,52 +1,108 @@
-PImage winBgImg;
+PImage catImg;
+int catFrameW;
 
 void loadWinAssets() {
-  // winBgImg = loadImage("win_bg.png"); // TODO: uncomment once win_bg.png is added to data/
+  catImg  = loadImage("cat-1.png");
 }
 
 void drawWin() {
   int t = millis() - stateEnterMillis;
-
+  
   if (t < 1000) {
-    // Stage 1: still on the in-level backdrop, player standing near the tree/cat.
     drawSceneBackdrop();
-    drawTreesAndCat();
+    drawTreeAndCatWin(width / 2, height - 80);
     player.display();
-  } else if (t < 2000) {
-    // Stage 2: cut to the light "found" background.
-    drawWinBackground();
-    drawWinComposition();
+  } else if (t < 2500) {
+    float p = constrain((t - 1000) / 1500.0, 0, 1);
+    float pSky = constrain((t - 1000) / 3000.0, 0, 1);
+    drawWinTransition(p, pSky);
   } else if (t < 5000) {
-    // Stage 3: same frame, text overlay.
-    drawWinBackground();
-    drawWinComposition();
-
-    fill(40, 28, 51);
-    textAlign(CENTER, CENTER);
-    textFont(titleFont);
-    text("YOU WON!", width / 2, height * 0.75);
-    textFont(uiFont);
-    text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
+    drawWinFinalScene();
+    // fill(40, 28, 51);
+    // textAlign(CENTER, CENTER);
+    // textFont(titleFont);
+    // text("YOU WON!", width / 2, height * 0.75);
+    // textFont(uiFont);
+    // text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
   } else {
     startNextLevel();
     changeState(GAME);
   }
 }
 
-void drawWinBackground() {
-  if (winBgImg != null) {
-    image(winBgImg, 0, 0, width, height);
-  } else {
-    background(255, 228, 206); // placeholder cream/peach fill until win_bg.png is delivered
+void drawTreeAndCatWin(float centerX, float floorLineY) {
+  float treeW = (treeImg != null) ? treeImg.width * treeScale : 0;
+  float treeH = (treeImg != null) ? treeImg.height * treeScale : 0;
+  float treeX = centerX - treeW / 2;
+
+  if (treeImg != null) {
+    image(treeImg, treeX, floorLineY - treeH + treeYOffset, treeW, treeH);
+  }
+
+  if (frameCount % catFrameInterval == 0) {
+    catFrameIndex = (catFrameIndex + 1) % 5;
+  }
+  PImage currentCatFrame = catFrames[catFrameIndex];
+
+  if (currentCatFrame != null) {
+    float catW = currentCatFrame.width * catScale;
+    float catH = currentCatFrame.height * catScale;
+    float catX = treeX + treeW * 0.7;
+    float catY = floorLineY - catH + catYOffset;
+
+    pushMatrix();
+    translate(catX + catW, catY);
+    scale(-1, 1);
+    image(currentCatFrame, 0, 0, catW, catH);
+    popMatrix();
   }
 }
 
-void drawWinComposition() {
-  float floorLineY = height - 80;
-  float treeW = (treeImg != null) ? treeImg.width : 0;
-  float treeH = (treeImg != null) ? treeImg.height : 0;
+void drawWinFinalScene() {
+  background(HUD_CREAM);
 
-  safeImage(playerIdleImg, width * 0.1, floorLineY - (playerIdleImg != null ? playerIdleImg.height : 0));
-  safeImage(treeImg, width * 0.55, floorLineY - treeH);
-  safeImage(catImg, width * 0.55 + treeW * 0.7, floorLineY - (catImg != null ? catImg.height : 0));
+  noStroke();
+  fill(#3D2C4D);
+  rect(0, height / 2, width, height - height / 2);
+
+  float floorStartY = 100;
+  float floorTargetY = height / 2 - floorImg.height + 100 ;
+  image(floorImg, 0, floorTargetY);
+
+
+
+  float dy = floorStartY - floorTargetY;
+  pushMatrix();
+  translate(0, -dy);
+  drawTreeAndCatWin(width / 2, height - 80);
+  player.display();
+  popMatrix();
+}
+
+void drawWinTransition(float p, float pSky) {
+  background(HUD_CREAM);
+
+  float skyDy = lerp(0, height + skyImg.height, pSky);
+  pushMatrix();
+  translate(0, -skyDy);
+  image(skyImg, 0, 0);
+  clouds.update();
+  clouds.display();
+  popMatrix();
+
+  float floorStartY = 100;
+  float floorTargetY = height / 2 - floorImg.height + 100;
+  float floorY = lerp(floorStartY, floorTargetY, p);
+  float groundDy = floorStartY - floorY;
+
+  pushMatrix();
+  translate(0, -groundDy);
+  image(floorImg, 0, floorStartY);
+  drawTreeAndCatWin(width / 2, height - 80);
+  player.display();
+  popMatrix();
+
+  noStroke();
+  fill(#3D2C4D);
+  rect(0, floorY + floorImg.height, width, height - (floorY + floorImg.height));
 }

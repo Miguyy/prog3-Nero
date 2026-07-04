@@ -1,16 +1,35 @@
 // Shared UI assets, also used by Score.pde / Options.pde / Win.pde
-PImage treeImg, catImg, pillButtonImg, panelImg, cursorImg, clickImg;
+PImage treeImg, pillButtonImg, panelImg, cursorImg, clickImg;
+PImage startBtnImg, scoreBtnImg, optionsBtnImg, exitBtnImg;
+
+PImage[] catFrames = new PImage[5];
+int catFrameIndex = 0;
+int catFrameInterval = 16;
 
 DwellTarget[] menuButtons = new DwellTarget[4];
 String[] menuLabels = {"START", "SCORE", "OPTIONS", "EXIT"};
+PImage[] menuBtnImgs = new PImage[4];
 
 void loadMenuAssets() {
-  // treeImg = loadImage("tree.png"); // TODO: uncomment once tree.png is added to data/
-  // catImg = loadImage("cat.png"); // TODO: uncomment once cat.png is added to data/
-  // pillButtonImg = loadImage("pill_button.png"); // TODO: uncomment once pill_button.png is added to data/
-  // panelImg = loadImage("panel.png"); // TODO: uncomment once panel.png is added to data/
+
   cursorImg = loadImage("cursor.png");
   clickImg = loadImage("click.png");
+
+  treeImg = loadImage("tree.png");
+
+  for (int i = 1; i <= 5; i++) {
+    catFrames[i - 1] = loadImage("cat-" + i + ".png");
+  }
+
+  startBtnImg = loadImage("start.png");
+  scoreBtnImg = loadImage("score.png");
+  optionsBtnImg = loadImage("options.png");
+  exitBtnImg = loadImage("exit.png");
+
+  menuBtnImgs[0] = startBtnImg;
+  menuBtnImgs[1] = scoreBtnImg;
+  menuBtnImgs[2] = optionsBtnImg;
+  menuBtnImgs[3] = exitBtnImg;
 
   float btnW = width * 0.22;
   float btnH = height * 0.07;
@@ -32,34 +51,56 @@ void drawMenu() {
 
   for (int i = 0; i < 4; i++) {
     boolean selected = menuButtons[i].update(p, pointing);
-    drawPillButton(menuButtons[i], menuLabels[i]);
+    drawMenuButton(menuButtons[i], menuBtnImgs[i]);
     if (selected) onMenuButtonSelected(i);
   }
 }
 
+float treeScale = 0.25;
+float catScale = 0.2;
+float treeYOffset = -20;
+float catYOffset = 15;
+float treeMarginPct = 0.10;
+
 void drawTreesAndCat() {
   float floorLineY = height - 80;
-  float treeW = (treeImg != null) ? treeImg.width : 0;
-  float treeH = (treeImg != null) ? treeImg.height : 0;
+  float treeW = (treeImg != null) ? treeImg.width * treeScale : 0;
+  float treeH = (treeImg != null) ? treeImg.height * treeScale : 0;
+
+  float leftX = width * treeMarginPct;
 
   if (treeImg != null) {
-    image(treeImg, width * 0.06, floorLineY - treeH);
 
-    pushMatrix();
-    translate(width * 0.94 + treeW, floorLineY - treeH);
-    scale(-1, 1);
-    image(treeImg, 0, 0);
-    popMatrix();
+    image(treeImg, leftX, floorLineY - treeH + treeYOffset, treeW, treeH);
+
+    float rightX = width * (1 - treeMarginPct) - treeW;
+    image(treeImg, rightX, floorLineY - treeH + treeYOffset, treeW, treeH);
   }
 
-  if (catImg != null) {
-    image(catImg, width * 0.06 + treeW * 0.7, floorLineY - catImg.height);
+  if (frameCount % catFrameInterval == 0) {
+    catFrameIndex = (catFrameIndex + 1) % 5;
+  }
+  PImage currentCatFrame = catFrames[catFrameIndex];
+
+  if (currentCatFrame != null) {
+    float catW = currentCatFrame.width * catScale;
+    float catH = currentCatFrame.height * catScale;
+    float catX = leftX + treeW * 0.7;
+    float catY = floorLineY - catH + catYOffset;
+
+    pushMatrix();
+    translate(catX + catW, catY);
+    scale(-1, 1);
+    image(currentCatFrame, 0, 0, catW, catH);
+    popMatrix();
   }
 }
 
-void drawPillButton(DwellTarget b, String label) {
-  if (pillButtonImg != null) {
-    image(pillButtonImg, b.x, b.y, b.w, b.h);
+void drawMenuButton(DwellTarget b, PImage img) {
+  if (img != null) {
+    float ix = b.x + b.w / 2 - img.width / 2;
+    float iy = b.y + b.h / 2 - img.height / 2;
+    image(img, ix, iy);
   } else {
     // Placeholder until pill_button.png is delivered, so buttons stay visible/clickable.
     noStroke();
@@ -71,16 +112,11 @@ void drawPillButton(DwellTarget b, String label) {
     rect(b.x, b.y, b.w, b.h, b.h / 2);
   }
 
-  if (b.progress > 0) {
-    noStroke();
-    fill(red(HUD_PINK), green(HUD_PINK), blue(HUD_PINK), 140);
-    rect(b.x, b.y, b.w * b.progress, b.h);
-  }
-
-  fill(40, 28, 51);
-  textAlign(CENTER, CENTER);
-  textFont(uiFont);
-  text(label, b.x + b.w / 2, b.y + b.h / 2);
+  // if (b.progress > 0) {
+  //   noStroke();
+  //   fill(red(HUD_PINK), green(HUD_PINK), blue(HUD_PINK), 140);
+  //   rect(b.x, b.y, b.w * b.progress, b.h);
+  // }
 }
 
 // Shared by Score.pde/Options.pde -- draws panel.png if available, else a

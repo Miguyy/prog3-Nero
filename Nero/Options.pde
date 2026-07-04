@@ -1,44 +1,91 @@
 DwellTarget musicMinusBtn, musicPlusBtn, sfxMinusBtn, sfxPlusBtn, cancelBtn, saveBtn;
 final float VOLUME_STEP = 0.1;
 
+PImage optionsPanelImg, cancelImg, saveImg, minusImg, plusImg, scaleImg;
+
 void loadOptionsAssets() {
-  float panelW = width * 0.32;
-  float panelX = width / 2 - panelW / 2;
-  float sliderY1 = height * 0.32;
-  float sliderY2 = height * 0.44;
-  float btnSize = height * 0.04;
-
-  musicMinusBtn = new DwellTarget(panelX + 20, sliderY1, btnSize, btnSize);
-  musicPlusBtn = new DwellTarget(panelX + panelW - 20 - btnSize, sliderY1, btnSize, btnSize);
-  sfxMinusBtn = new DwellTarget(panelX + 20, sliderY2, btnSize, btnSize);
-  sfxPlusBtn = new DwellTarget(panelX + panelW - 20 - btnSize, sliderY2, btnSize, btnSize);
-
-  float btnW = width * 0.14;
-  float btnH = height * 0.06;
-  cancelBtn = new DwellTarget(width / 2 - btnW - 10, height * 0.66, btnW, btnH);
-  saveBtn = new DwellTarget(width / 2 + 10, height * 0.66, btnW, btnH);
+  optionsPanelImg = loadImage("options-wrapper.png");
+  cancelImg = loadImage("cancel.png");
+  saveImg = loadImage("save.png");
+  minusImg = loadImage("minus.png");
+  plusImg = loadImage("plus.png");
+  scaleImg = loadImage("scale.png");
 }
 
 void drawOptions() {
   drawSceneBackdrop();
   drawTreesAndCat();
 
-  float panelW = width * 0.32;
+  if (optionsPanelImg == null) return;
+
+  float maxW = width * 0.3;
+  float maxH = height * 0.5;
+
+  float imgRatio = optionsPanelImg.width / (float) optionsPanelImg.height;
+
+  float panelW = maxW;
+  float panelH = panelW / imgRatio;
+
+  if (panelH > maxH) {
+    panelH = maxH;
+    panelW = panelH * imgRatio;
+  }
+
   float panelX = width / 2 - panelW / 2;
-  float panelY = height * 0.2;
-  float panelH = height * 0.35;
+  float panelY = height * 0.16;
 
-  drawPanel(panelX, panelY, panelW, panelH, panelH * 0.15);
-  fill(255);
-  textAlign(CENTER, CENTER);
-  textFont(titleFont);
-  text("OPTIONS", panelX + panelW / 2, panelY + panelH * 0.1);
+  image(optionsPanelImg, panelX, panelY, panelW, panelH);
 
-  drawVolumeSlider("MUSIC VOLUME", musicMinusBtn, musicPlusBtn, getMusicVolume());
-  drawVolumeSlider("SFX VOLUME", sfxMinusBtn, sfxPlusBtn, getSFXVolume());
+  float headerRatio = 0.14;
+  float bodyTopPad = 0.06;
+  float bodyBottomPad = 0.06;
 
-  drawPillButton(cancelBtn, "CANCEL");
-  drawPillButton(saveBtn, "SAVE");
+  float bodyTop = panelY + panelH * (headerRatio + bodyTopPad);
+  float bodyBottom = panelY + panelH * (1 - bodyBottomPad);
+  float bodyH = bodyBottom - bodyTop;
+
+  // cada linha (label + slider) ocupa metade do corpo
+  float rowH = bodyH / 2;
+  float labelH = rowH * 0.35;   // espaço reservado para "MUSIC VOLUME" / "SFX VOLUME"
+  float sliderH = rowH * 0.55;  // espaço reservado para a barra + botões
+
+  float musicLabelY = bodyTop;
+  float musicSliderY = musicLabelY + labelH;
+
+  float sfxLabelY = bodyTop + rowH;
+  float sfxSliderY = sfxLabelY + labelH;
+
+  float sidePad = panelW * 0.06;
+  float btnH = height * 0.07;
+  float minusW = (minusImg != null) ? btnH * (minusImg.width / (float) minusImg.height) : btnH;
+  float plusW  = (plusImg  != null) ? btnH * (plusImg.width  / (float) plusImg.height)  : btnH;
+
+  musicMinusBtn = new DwellTarget(panelX + sidePad, musicSliderY, minusW, btnH);
+  musicPlusBtn  = new DwellTarget(panelX + panelW - sidePad - plusW, musicSliderY, plusW, btnH);
+  sfxMinusBtn   = new DwellTarget(panelX + sidePad, sfxSliderY, minusW, btnH);
+  sfxPlusBtn    = new DwellTarget(panelX + panelW - sidePad - plusW, sfxSliderY, plusW, btnH);
+
+  fill(HUD_BLACK);
+  textFont(uiFont);
+  textAlign(LEFT, TOP);
+  textSize(labelH * 0.7);
+  text("MUSIC VOLUME", panelX + sidePad, musicLabelY);
+  text("SFX VOLUME", panelX + sidePad, sfxLabelY);
+
+  drawVolumeSlider(musicMinusBtn, musicPlusBtn, getMusicVolume());
+  drawVolumeSlider(sfxMinusBtn, sfxPlusBtn, getSFXVolume());
+
+  float rectBtnH = height * 0.07;
+  float cancelW = (cancelImg != null) ? rectBtnH * (cancelImg.width / (float) cancelImg.height) : width * 0.16;
+  float saveW   = (saveImg   != null) ? rectBtnH * (saveImg.width   / (float) saveImg.height)   : width * 0.16;
+
+  float btnY = panelY + panelH + panelH * 0.08;
+
+  cancelBtn = new DwellTarget(panelX, btnY, cancelW, rectBtnH);
+  saveBtn = new DwellTarget(panelX + panelW - saveW, btnY, saveW, rectBtnH);
+
+  if (cancelImg != null) image(cancelImg, cancelBtn.x, cancelBtn.y, cancelBtn.w, cancelBtn.h);
+  if (saveImg != null) image(saveImg, saveBtn.x, saveBtn.y, saveBtn.w, saveBtn.h);
 
   PVector p = getHandScreenPos();
   boolean pointing = isHandPointing();
@@ -57,47 +104,30 @@ void drawOptions() {
   }
 }
 
-void drawVolumeSlider(String label, DwellTarget minusBtn, DwellTarget plusBtn, float value) {
-  fill(40, 28, 51);
-  textAlign(LEFT, BOTTOM);
-  textFont(uiFont);
-  text(label, minusBtn.x, minusBtn.y - 6);
-
+void drawVolumeSlider(DwellTarget minusBtn, DwellTarget plusBtn, float value) {
   float trackX = minusBtn.x + minusBtn.w + 10;
   float trackW = plusBtn.x - trackX - 10;
   float trackY = minusBtn.y;
   float trackH = minusBtn.h;
 
-  noStroke();
-  fill(HUD_PINK);
-  rect(trackX, trackY, trackW, trackH, trackH / 2);
-  fill(200, 40, 70);
-  rect(trackX, trackY, trackW * value, trackH, trackH / 2);
-
-  drawSquareButton(minusBtn, "-");
-  drawSquareButton(plusBtn, "+");
-}
-
-void drawSquareButton(DwellTarget b, String label) {
-  noStroke();
-  fill(255, 228, 206);
-  rect(b.x, b.y, b.w, b.h);
-
-  noFill();
-  stroke(HUD_PINK);
-  strokeWeight(2);
-  rect(b.x, b.y, b.w, b.h);
-
-  if (b.progress > 0) {
-    noStroke();
-    fill(red(HUD_PINK), green(HUD_PINK), blue(HUD_PINK), 140);
-    rect(b.x, b.y, b.w * b.progress, b.h);
+  if (scaleImg != null) {
+    image(scaleImg, trackX, trackY, trackW, trackH);
   }
 
+  float fillInsetX = trackW * 0.05;
+  float fillInsetY = trackH * 0.18;
+
+  float fillX = trackX + fillInsetX;
+  float fillY = trackY + fillInsetY;
+  float fillMaxW = trackW - fillInsetX * 2;
+  float fillH = trackH - fillInsetY * 2;
+
   noStroke();
-  fill(40, 28, 51);
-  textAlign(CENTER, CENTER);
-  text(label, b.x + b.w / 2, b.y + b.h / 2);
+  fill(200, 40, 70);
+  rect(fillX, fillY, fillMaxW * value, fillH);
+
+  if (minusImg != null) image(minusImg, minusBtn.x, minusBtn.y, minusBtn.w, minusBtn.h);
+  if (plusImg != null) image(plusImg, plusBtn.x, plusBtn.y, plusBtn.w, plusBtn.h);
 }
 
 void optionsMousePressed() {
@@ -116,8 +146,6 @@ void optionsMousePressed() {
 }
 
 void optionsMouseDragged() {
-  // No drag interaction -- volume is adjusted exclusively via +/- steps (dwell or click),
-  // consistent with the Kinect-dwell-everywhere input model.
 }
 
 void optionsMouseReleased() {
