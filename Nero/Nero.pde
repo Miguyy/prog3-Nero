@@ -31,7 +31,7 @@ boolean fallbackDownHeld = false;
 
 
 void setup() {
-  fullScreen(P2D);
+  fullScreen();
   frameRate(60);
   noCursor();
 
@@ -98,6 +98,9 @@ void changeState(int newState) {
   stateEnterMillis = millis();
   resetDwellState();
   playMusicForState(newState);
+  if (newState == GAME) {
+    resetKinectCalibration();
+  }
   if (newState == LOSE) {
     player.jumping = false;
     player.crouching = false;
