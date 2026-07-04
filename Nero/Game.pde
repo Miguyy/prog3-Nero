@@ -206,17 +206,60 @@ void drawKinectPreview() {
 
 void drawSkeletonSilhouette(float bx, float by, float bw, float bh) {
   PVector[] joints = getSkeletonJointsNormalized();
+  noFill();
+
+  stroke(HUD_LIGHTPINK, 220);
+  strokeWeight(10);
+  drawSkeletonBone(joints, JOINT_HEAD, JOINT_SHOULDER_CENTER, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_CENTER, JOINT_HIP_CENTER, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_CENTER, JOINT_HAND_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_CENTER, JOINT_HAND_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_HIP_CENTER, JOINT_KNEE_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_HIP_CENTER, JOINT_KNEE_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_KNEE_LEFT, JOINT_FOOT_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_KNEE_RIGHT, JOINT_FOOT_RIGHT, bx, by, bw, bh);
+
+  stroke(HUD_PINK, 240);
+  strokeWeight(4);
+  drawSkeletonBone(joints, JOINT_HEAD, JOINT_SHOULDER_CENTER, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_CENTER, JOINT_HIP_CENTER, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_LEFT, JOINT_ELBOW_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_ELBOW_LEFT, JOINT_WRIST_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_WRIST_LEFT, JOINT_HAND_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_SHOULDER_RIGHT, JOINT_ELBOW_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_ELBOW_RIGHT, JOINT_WRIST_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_WRIST_RIGHT, JOINT_HAND_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_HIP_LEFT, JOINT_KNEE_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_HIP_RIGHT, JOINT_KNEE_RIGHT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_ANKLE_LEFT, JOINT_FOOT_LEFT, bx, by, bw, bh);
+  drawSkeletonBone(joints, JOINT_ANKLE_RIGHT, JOINT_FOOT_RIGHT, bx, by, bw, bh);
+
   fill(HUD_PINK);
   noStroke();
-  drawJointBlob(joints, JOINT_HEAD, bx, by, bw, bh, 14);
-  drawJointBlob(joints, JOINT_SHOULDER_CENTER, bx, by, bw, bh, 10);
-  drawJointBlob(joints, JOINT_HAND_LEFT, bx, by, bw, bh, 8);
-  drawJointBlob(joints, JOINT_HAND_RIGHT, bx, by, bw, bh, 8);
-  drawJointBlob(joints, JOINT_HIP_CENTER, bx, by, bw, bh, 10);
-  drawJointBlob(joints, JOINT_KNEE_LEFT, bx, by, bw, bh, 8);
-  drawJointBlob(joints, JOINT_KNEE_RIGHT, bx, by, bw, bh, 8);
+  drawJointBlob(joints, JOINT_HEAD, bx, by, bw, bh, 18);
+  drawJointBlob(joints, JOINT_SHOULDER_CENTER, bx, by, bw, bh, 14);
+  drawJointBlob(joints, JOINT_SHOULDER_LEFT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_SHOULDER_RIGHT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_HAND_LEFT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_HAND_RIGHT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_HIP_CENTER, bx, by, bw, bh, 14);
+  drawJointBlob(joints, JOINT_HIP_LEFT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_HIP_RIGHT, bx, by, bw, bh, 10);
+  drawJointBlob(joints, JOINT_KNEE_LEFT, bx, by, bw, bh, 9);
+  drawJointBlob(joints, JOINT_KNEE_RIGHT, bx, by, bw, bh, 9);
+  drawJointBlob(joints, JOINT_ANKLE_LEFT, bx, by, bw, bh, 8);
+  drawJointBlob(joints, JOINT_ANKLE_RIGHT, bx, by, bw, bh, 8);
   drawJointBlob(joints, JOINT_FOOT_LEFT, bx, by, bw, bh, 8);
   drawJointBlob(joints, JOINT_FOOT_RIGHT, bx, by, bw, bh, 8);
+}
+
+void drawSkeletonBone(PVector[] joints, int a, int b, float bx, float by, float bw, float bh) {
+  if (joints[a] == null || joints[b] == null) return;
+  float ax = bx + joints[a].x * bw;
+  float ay = by + joints[a].y * bh;
+  float bx2 = bx + joints[b].x * bw;
+  float by2 = by + joints[b].y * bh;
+  line(ax, ay, bx2, by2);
 }
 
 void drawJointBlob(PVector[] joints, int idx, float bx, float by, float bw, float bh, float size) {
@@ -312,7 +355,7 @@ class Player {
   void update() {
     crouching = isCrouching() && !jumping;
 
-    if (isJumping() && !jumping) {
+    if (isJumpTriggered() && !jumping) {
       jumping = true;
       velY = JUMP_VELOCITY;
     }
