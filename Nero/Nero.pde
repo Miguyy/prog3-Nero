@@ -31,7 +31,7 @@ boolean fallbackDownHeld = false;
 
 
 void setup() {
-  fullScreen();
+  fullScreen(P2D);
   frameRate(60);
   noCursor();
 
@@ -62,6 +62,14 @@ void setup() {
 
 
 void draw() {
+  // Must run before any screen draws its buttons -- this is what scopes the
+  // hand-cursor's "hovering something" check to ONLY the buttons that are
+  // actually live on the current screen this frame (see isAnyDwellActive()
+  // in Menu.pde and DwellTarget.update() in Kinect.pde). Without this reset,
+  // buttons from whatever screen you visited previously kept influencing the
+  // cursor sprite on every screen after that.
+  clearDwellFrameState();
+
   updateKinectInput();
 
   switch (currentState) {
@@ -121,10 +129,10 @@ void loadFonts() {
   textFont(uiFont);
 }
 
-// Several art assets haven't been delivered yet (see the plan's asset table) --
-// loadImage() returns null for those instead of throwing, so drawing code calls
-// through these helpers rather than image() directly to avoid a NullPointerException
-// on every frame until the real PNGs are dropped into data/.
+// Vários assets ainda não foram entregues -- loadImage() retorna null nesses
+// casos ao invés de lançar exceção, então o código de desenho passa por estes
+// helpers em vez de image() diretamente para evitar um NullPointerException
+// em todo frame até os PNGs reais serem colocados em data/.
 void safeImage(PImage img, float x, float y) {
   if (img != null) image(img, x, y);
 }

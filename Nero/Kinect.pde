@@ -1,18 +1,9 @@
-// ---------------------------------------------------------------------------
-// Raw Kinect4WinSDK wiring, verified against the library's public source
-// (github.com/chungbwc/Kinect4WinSDK: Kinect.java, SkeletonData.java,
-// KinectConstants.java) and its bundled example sketch. The real class is
-// `Kinect` (package kinect4WinSDK) -- not `Kinect4WinSDK`. Its constructor
-// starts the tracking thread itself, no separate start() call exists.
-// ---------------------------------------------------------------------------
 import kinect4WinSDK.Kinect;
 import kinect4WinSDK.SkeletonData;
 
 Kinect kinect;
 SkeletonData currentSkeleton = null;
 
-// Mirrors kinect4WinSDK.KinectConstants.NUI_SKELETON_POSITION_* so the rest
-// of the game doesn't need to import the library directly.
 final int JOINT_HIP_CENTER = Kinect.NUI_SKELETON_POSITION_HIP_CENTER;
 final int JOINT_SPINE = Kinect.NUI_SKELETON_POSITION_SPINE;
 final int JOINT_SHOULDER_CENTER = Kinect.NUI_SKELETON_POSITION_SHOULDER_CENTER;
@@ -41,16 +32,10 @@ float baselineHipY = 0;
 float baselineTorsoHeight = 0;
 int calibrationSamples = 0;
 
-// Relative thresholds are more stable than fixed pixels because they scale with
-// the player's distance from the sensor.
-final float JUMP_THRESHOLD_RATIO = 0.12;
+final float JUMP_THRESHOLD_RATIO = 0.16;   
 final float CROUCH_THRESHOLD_RATIO = 0.12;
-final int CALIBRATION_FRAMES = 20;
+final int CALIBRATION_FRAMES = 45;         
 
-// How long after a crouch ends before a jump is allowed to trigger. Standing
-// back up from a crouch naturally overshoots the head's baseline height for
-// a frame or two (you push up off your legs), which was being read as a
-// jump. A real jump, by contrast, isn't preceded by a crouch ending.
 final int CROUCH_RECOVERY_COOLDOWN_MS = 350;
 int lastCrouchEndMillis = -100000;
 boolean wasCrouchingLastFrame = false;
@@ -59,16 +44,25 @@ final int DWELL_MS = 2000;
 
 PVector pointerPos = new PVector();
 
+// How many consecutive frames the right hand can go untracked before the
+// cursor gives up and falls back to the mouse. Kinect's skeleton solver can
+// briefly lose the right hand when the left arm crosses in front of the body
+// or otherwise confuses it -- without this grace period, the cursor would
+// snap to the mouse for that instant and then snap back, which is what
+// looked like flickering on the Menu/Score/Options screens.
+final int HAND_LOST_GRACE_FRAMES = 8;
+int framesSinceHandTracked = 0;
+
 void loadKinect() {
   try {
-    kinect = new Kinect(this); // constructor starts the tracking thread itself
+    kinect = new Kinect(this);
     println("Kinect initialized");
   }
   catch (Throwable e) {
    println("Kinect init failed, falling back to mouse/keyboard: " + e.getMessage());
    kinect = null;
   }
-  kinectConnected = false; // becomes true once appearEvent fires with a tracked user
+  kinectConnected = false;
 }
 
 void resetKinectCalibration() {
@@ -79,8 +73,6 @@ void resetKinectCalibration() {
   baselineTorsoHeight = 0;
 }
 
-// Library-invoked event hooks -- each may only be defined once in the whole sketch.
-// Only the first tracked body becomes the active player; extra bodies are ignored.
 void appearEvent(SkeletonData skel) {
   if (skel.trackingState == Kinect.NUI_SKELETON_NOT_TRACKED) return;
   if (currentSkeleton != null) return;
@@ -125,15 +117,6 @@ boolean isJointTracked(SkeletonData skel, int joint) {
   return skel.skeletonPositionTrackingState[joint] == Kinect.NUI_SKELETON_POSITION_TRACKED;
 }
 
-// The library's skeleton coordinates are normalized so that multiplying by
-// the FULL width (x) and FULL height (y) maps them directly to the sketch's
-// pixel space (confirmed against the library author's own bundled example,
-// which does `_s.position.x*width, _s.position.y*height`, not width/2).
-// The previous "/2" here was the bug behind the pointer only ever reaching
-// half the screen: a raw value of 1.0 (fully to one side) was being mapped
-// to width/2 instead of the actual screen edge, and constrain() below then
-// clipped the other half to 0/width, so only one half of the screen was ever
-// reachable.
 float screenXOfJoint(SkeletonData skel, int joint) {
   return skel.skeletonPositions[joint].x * width;
 }
@@ -143,19 +126,29 @@ float screenYOfJoint(SkeletonData skel, int joint) {
 }
 
 // ---------------------------------------------------------------------------
-// Public input abstraction used by the rest of the game. Nothing outside this
-// file touches SkeletonData/raw joints directly.
+// Public input abstraction used by the rest of the game. Only the RIGHT hand
+// is ever used for pointing -- there is no left-hand input path here.
 // ---------------------------------------------------------------------------
 
 void updateKinectInput() {
-  if (isKinectTracking() && isJointTracked(currentSkeleton, JOINT_HAND_RIGHT)) {
-    pointerPos.set(
-      constrain(screenXOfJoint(currentSkeleton, JOINT_HAND_RIGHT), 0, width),
-      constrain(screenYOfJoint(currentSkeleton, JOINT_HAND_RIGHT), 0, height)
-      );
+  if (isKinectTracking()) {
+    if (isJointTracked(currentSkeleton, JOINT_HAND_RIGHT)) {
+      pointerPos.set(
+        constrain(screenXOfJoint(currentSkeleton, JOINT_HAND_RIGHT), 0, width),
+        constrain(screenYOfJoint(currentSkeleton, JOINT_HAND_RIGHT), 0, height)
+        );
+      framesSinceHandTracked = 0;
+    } else if (framesSinceHandTracked < HAND_LOST_GRACE_FRAMES) {
+      framesSinceHandTracked++;
+    } else {
+      pointerPos.set(mouseX, mouseY);
+    }
   } else {
+    framesSinceHandTracked = 0;
     pointerPos.set(mouseX, mouseY);
   }
+
+  updateJointSmoothing();
 
   boolean crouchingNow = isCrouching();
   if (wasCrouchingLastFrame && !crouchingNow) {
@@ -184,16 +177,39 @@ void updateKinectCalibration() {
   }
 }
 
+// Low-pass filtered head/hip Y, used by isJumping()/isCrouching() instead of
+// the raw per-frame joint position. Kinect's raw tracking is noisy enough
+// that, combined with a tight threshold, it could register as a jump even
+// while standing still. alpha closer to 0 = smoother/slower to react,
+// closer to 1 = snappier/noisier.
+float smoothedHeadY = 0;
+float smoothedHipY = 0;
+boolean jointSmoothingReady = false;
+final float SMOOTHING_ALPHA = 0.35;
+
+void updateJointSmoothing() {
+  if (!isKinectTracking()) {
+    jointSmoothingReady = false;
+    return;
+  }
+  if (isJointTracked(currentSkeleton, JOINT_HEAD)) {
+    float rawHeadY = screenYOfJoint(currentSkeleton, JOINT_HEAD);
+    smoothedHeadY = jointSmoothingReady ? lerp(smoothedHeadY, rawHeadY, SMOOTHING_ALPHA) : rawHeadY;
+  }
+  if (isJointTracked(currentSkeleton, JOINT_HIP_CENTER)) {
+    float rawHipY = screenYOfJoint(currentSkeleton, JOINT_HIP_CENTER);
+    smoothedHipY = jointSmoothingReady ? lerp(smoothedHipY, rawHipY, SMOOTHING_ALPHA) : rawHipY;
+  }
+  jointSmoothingReady = true;
+}
+
 boolean isJumping() {
   if (isKinectTracking() && calibrated && isJointTracked(currentSkeleton, JOINT_HEAD)) {
-    float headY = screenYOfJoint(currentSkeleton, JOINT_HEAD);
-    return (baselineHeadY - headY) > baselineTorsoHeight * JUMP_THRESHOLD_RATIO;
+    return (baselineHeadY - smoothedHeadY) > baselineTorsoHeight * JUMP_THRESHOLD_RATIO;
   }
   return fallbackUpHeld;
 }
 
-// Use this instead of isJumping() to trigger an actual jump -- it filters out
-// the "stood up from a crouch" false positive described above.
 boolean isJumpTriggered() {
   if (millis() - lastCrouchEndMillis < CROUCH_RECOVERY_COOLDOWN_MS) return false;
   return isJumping();
@@ -201,8 +217,7 @@ boolean isJumpTriggered() {
 
 boolean isCrouching() {
   if (isKinectTracking() && calibrated && isJointTracked(currentSkeleton, JOINT_HIP_CENTER)) {
-    float hipY = screenYOfJoint(currentSkeleton, JOINT_HIP_CENTER);
-    return (hipY - baselineHipY) > baselineTorsoHeight * CROUCH_THRESHOLD_RATIO;
+    return (smoothedHipY - baselineHipY) > baselineTorsoHeight * CROUCH_THRESHOLD_RATIO;
   }
   return fallbackDownHeld;
 }
@@ -232,7 +247,6 @@ PVector[] getSkeletonJointsNormalized() {
       pts[j] = new PVector(constrain(map(sx, 0, width, 0, 1), 0, 1), constrain(map(sy, 0, height, 0, 1), 0, 1));
     }
   } else {
-    // Synthesized fallback pose driven by keyboard state so the HUD preview is never empty during dev testing.
     float crouchOffset = fallbackDownHeld ? 0.15 : 0;
     float jumpOffset = fallbackUpHeld ? -0.1 : 0;
     float bodyTop = 0.16 + crouchOffset + jumpOffset;
@@ -273,6 +287,17 @@ PVector[] getSkeletonJointsNormalized() {
 
 ArrayList<DwellTarget> allDwellTargets = new ArrayList<DwellTarget>();
 
+// Populated fresh every frame with only the DwellTargets that were actually
+// checked THIS frame (i.e. the ones belonging to whatever screen is showing
+// right now). isAnyDwellActive() reads from this instead of allDwellTargets
+// so leftover buttons from a screen you're no longer on can never affect the
+// cursor sprite. Cleared at the top of draw() in Nero.pde.
+ArrayList<DwellTarget> dwellTargetsUpdatedThisFrame = new ArrayList<DwellTarget>();
+
+void clearDwellFrameState() {
+  dwellTargetsUpdatedThisFrame.clear();
+}
+
 class DwellTarget {
   float x, y, w, h;
   float hoverStart = -1;
@@ -292,6 +317,8 @@ class DwellTarget {
 
   // Returns true exactly once, the frame a continuous 2s hover completes.
   boolean update(PVector pointer, boolean pointing) {
+    dwellTargetsUpdatedThisFrame.add(this);
+
     if (contains(pointer) && pointing) {
       if (hoverStart < 0) hoverStart = millis();
       progress = constrain((millis() - hoverStart) / (float) DWELL_MS, 0, 1);

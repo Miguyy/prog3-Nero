@@ -6,14 +6,16 @@ PImage skyImg, floorImg, cloudsImg, kinectPreviewImg;
 ScrollingImage clouds;
 
 PImage[] bubbleImgs = new PImage[4];
-int nextBubbleIndex = 0;
 ArrayList<Obstacle> obstacles = new ArrayList<Obstacle>();
 
 float obstacleSpeed = 20;
 float spawnInterval = 2;
 float spawnTimer = 0;
 
-float topRowY = 750;
+// topRowY is no longer a fixed guess -- it's computed in loadBackground()
+// from the player's actual crouching height, so the top bubbles reliably
+// threaten a standing player and can only be dodged by ducking.
+float topRowY;
 float bottomRowY = 900;
 
 Player player;
@@ -27,7 +29,7 @@ final int LEVEL_DURATION_FRAMES = 60 * 45;
 final float SPEED_GROWTH = 1.15;
 final float INTERVAL_SHRINK = 0.9;
 final float MAX_SPEED = 12;
-final float MIN_INTERVAL = 45;
+final float MIN_INTERVAL = 30;
 
 // Kinect preview HUD box (top-left)
 float hudX, hudY, hudW, hudH, hudHeaderH = 34;
@@ -57,6 +59,14 @@ void loadBackground() {
   groundY = bottomRowY + 90;
   player = new Player(width * 0.08);
   player.load();
+
+  // Top bubble's bottom edge sits just above the CROUCHING head (with a
+  // small safety margin), so ducking reliably clears it. This is the
+  // minimum height that still guarantees the crouch dodge works -- it's
+  // bounded by how much shorter crouch.png is than default.png, not an
+  // arbitrary number. If it still reads as "too tall", shorten the crouch
+  // pose art rather than this margin.
+  
 }
 
 void drawBackground() {
@@ -125,7 +135,7 @@ void resetGameFull() {
   level = 1;
   score = 0;
   obstacleSpeed = 20;
-  spawnInterval = 150;
+  spawnInterval = 70;   // was 150 -- roughly doubles bubbles per level
   obstacles.clear();
   spawnTimer = 0;
   levelTimer = 0;
@@ -159,12 +169,25 @@ void drawObstacles() {
   }
 }
 
+// Randomized instead of a fixed bottom/top/bottom/top alternation: each
+// spawn independently rolls both the sprite and the row, so the sequence
+// the player sees is unpredictable rather than a repeating pattern.
 void spawnObstacle() {
-  PImage chosenImg = bubbleImgs[nextBubbleIndex];
-  float y = (nextBubbleIndex % 2 == 0) ? bottomRowY : topRowY;
+  int imgIndex = int(random(bubbleImgs.length));
+  PImage chosenImg = bubbleImgs[imgIndex];
+  
+  float y;
+  if (random(1) < 0.5) {
+    y = bottomRowY;
+  } else {
+    float crouchHeadTopY = groundY - (player.crouchImg.height * player.scale);
+    
+    float dodgeMargin = -35; 
+    
+    y = crouchHeadTopY - chosenImg.height - dodgeMargin;
+  }
 
   obstacles.add(new Obstacle(chosenImg, width, y, obstacleSpeed));
-  nextBubbleIndex = (nextBubbleIndex + 1) % 4;
 }
 
 boolean checkCollisions(Player p) {
@@ -204,6 +227,8 @@ void drawKinectPreview() {
   drawSkeletonSilhouette(bodyX, bodyY, bodyW, bodyH);
 }
 
+// Left arm restored -- it was never actually the cause of the Menu/Score/
+// Options flicker (see the fix in Kinect.pde), so no reason to hide it here.
 void drawSkeletonSilhouette(float bx, float by, float bw, float bh) {
   PVector[] joints = getSkeletonJointsNormalized();
   noFill();
@@ -323,7 +348,7 @@ class Obstacle extends Scrollable {
   }
 
   Rectangle getHitbox() {
-    float inset = img.width * 0.15;
+    float inset = img.width * 0.0148;
     return new Rectangle(
       (int)(x + inset),
       (int)(y + inset),

@@ -174,7 +174,10 @@ void drawHandCursor() {
 }
 
 boolean isAnyDwellActive() {
-  for (DwellTarget t : allDwellTargets) {
+  // Only look at buttons that were actually checked THIS frame (i.e. the
+  // ones on the screen you're currently viewing) -- not every DwellTarget
+  // that has ever existed. See dwellTargetsUpdatedThisFrame in Kinect.pde.
+  for (DwellTarget t : dwellTargetsUpdatedThisFrame) {
     if (t.progress > 0) return true;
   }
   return false;
