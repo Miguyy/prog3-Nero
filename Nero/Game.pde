@@ -13,7 +13,11 @@ float obstacleSpeed = 3;
 float spawnInterval = 150;
 float spawnTimer = 0;
 
+<<<<<<< Updated upstream
 float topRowY = 750;
+=======
+float topRowY;
+>>>>>>> Stashed changes
 float bottomRowY = 900;
 
 // Player + level state
@@ -48,12 +52,18 @@ void loadBackground() {
   bubbleImgs[2] = loadImage("bolhas-3.png");
   bubbleImgs[3] = loadImage("bolhas-4.png");
 
+<<<<<<< Updated upstream
   playerIdleImg = loadImage("default.png");
   playerCrouchImg = loadImage("crouch.png");
   // playerJumpImg = loadImage("player_jump.png"); // TODO: uncomment once player_jump.png is added to data/
 
   groundY = bottomRowY + 90;
   player = new Player(width * 0.15);
+=======
+  groundY = bottomRowY + 90;
+  player = new Player(width * 0.08);
+  player.load();
+>>>>>>> Stashed changes
 }
 
 void drawBackground() {
@@ -157,8 +167,28 @@ void drawObstacles() {
 }
 
 void spawnObstacle() {
+<<<<<<< Updated upstream
   PImage chosenImg = bubbleImgs[nextBubbleIndex];
   float y = (nextBubbleIndex % 2 == 0) ? bottomRowY : topRowY;
+=======
+  int imgIndex = int(random(bubbleImgs.length));
+  PImage chosenImg = bubbleImgs[imgIndex];
+  
+  float y;
+  if (random(1) < 0.5) {
+    y = bottomRowY;
+  } else {
+    float crouchHeadTopY = player.crouchHeadWorldY();
+
+    // Clearance kept between the obstacle's bottom edge and the crouching
+    // head, so a duck reliably clears it while a standing player still
+    // gets hit (the gap between the two head heights is only ~17px at
+    // this sprite scale, so this margin has little room to grow).
+    float dodgeMargin = 8;
+
+    y = crouchHeadTopY - chosenImg.height - dodgeMargin;
+  }
+>>>>>>> Stashed changes
 
   obstacles.add(new Obstacle(chosenImg, width, y, obstacleSpeed));
   nextBubbleIndex = (nextBubbleIndex + 1) % 4;
@@ -286,6 +316,15 @@ class Player {
   boolean jumping = false;
   boolean crouching = false;
 
+  // default.png and crouch.png are both 928x928 canvases -- the crouch pose
+  // is baked in as extra transparent padding at the top, not a shorter
+  // image. These are the topmost opaque pixel row (in source-image
+  // coordinates) for each sprite, measured directly from the art, so the
+  // hitbox and top-obstacle spawn math track where the head actually is
+  // instead of assuming crouchImg is literally shorter than defaultImg.
+  final float STANDING_HEAD_OFFSET = 87;
+  final float CROUCHING_HEAD_OFFSET = 174;
+
   Player(float x) {
     this.x = x;
     this.y = groundY;
@@ -325,8 +364,21 @@ class Player {
     image(s, x, y - s.height);
   }
 
+  float headOffset() {
+    return crouching ? CROUCHING_HEAD_OFFSET : STANDING_HEAD_OFFSET;
+  }
+
+  // World-space y of this player's head top while crouching, as if standing
+  // on the ground (not jumping). Used by spawnObstacle() to place top-row
+  // obstacles relative to where a duck actually clears.
+  float crouchHeadWorldY() {
+    float h = crouchImg.height * scale;
+    return (groundY - h) + CROUCHING_HEAD_OFFSET * scale;
+  }
+
   Rectangle getHitbox() {
     PImage s = currentSprite();
+<<<<<<< Updated upstream
     float inset = s.width * 0.2;
     return new Rectangle(
       (int)(x + inset),
@@ -334,5 +386,19 @@ class Player {
       (int)(s.width - 2 * inset),
       (int)(s.height - 2 * inset)
       );
+=======
+    float w = s.width * scale;
+    float h = s.height * scale;
+    float insetX = w * 0.2;
+    float insetBottom = h * 0.2;
+    float top = (y - h) + headOffset() * scale;
+    float bottom = y - insetBottom;
+    return new Rectangle(
+      (int)(x + insetX),
+      (int)top,
+      (int)(w - 2 * insetX),
+      (int)(bottom - top)
+    );
+>>>>>>> Stashed changes
   }
 }
