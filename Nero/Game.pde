@@ -60,13 +60,10 @@ void loadBackground() {
   player = new Player(width * 0.08);
   player.load();
 
-  // Top bubble's bottom edge sits just above the CROUCHING head (with a
-  // small safety margin), so ducking reliably clears it. This is the
-  // minimum height that still guarantees the crouch dodge works -- it's
-  // bounded by how much shorter crouch.png is than default.png, not an
-  // arbitrary number. If it still reads as "too tall", shorten the crouch
-  // pose art rather than this margin.
-  
+  // Top bubble's bottom edge is placed relative to the crouching player's
+  // real (alpha-scanned) head height -- see Player.crouchHeadTopY() and
+  // dodgeMargin in spawnObstacle() -- so it reliably overlaps a standing
+  // player's hitbox while still clearing a crouching one.
 }
 
 void drawBackground() {
@@ -180,11 +177,15 @@ void spawnObstacle() {
   if (random(1) < 0.5) {
     y = bottomRowY;
   } else {
-    float crouchHeadTopY = groundY - (player.crouchImg.height * player.scale);
-    
-    float dodgeMargin = -35; 
-    
-    y = crouchHeadTopY - chosenImg.height - dodgeMargin;
+    float crouchHeadTopY = player.crouchHeadTopY();
+
+    // Bottom edge of the obstacle sits dodgeMargin px *below* the crouching
+    // head, inside the gap left by getHitbox()'s 20% vertical inset -- deep
+    // enough to overlap a standing player's hitbox but still short of a
+    // crouching player's (smaller) hitbox. See getHitbox() for the inset.
+    float dodgeMargin = -18;
+
+    y = crouchHeadTopY - dodgeMargin - chosenImg.height;
   }
 
   obstacles.add(new Obstacle(chosenImg, width, y, obstacleSpeed));
@@ -358,6 +359,30 @@ class Obstacle extends Scrollable {
   }
 }
 
+// Scans an image's alpha channel for the first/last row containing a
+// non-transparent pixel. Used to find a sprite's real visible extent when
+// its canvas has transparent padding that raw img.height can't account for.
+int[] opaqueVerticalBounds(PImage img) {
+  img.loadPixels();
+  int top = -1;
+  int bottom = -1;
+  for (int y = 0; y < img.height; y++) {
+    int rowStart = y * img.width;
+    for (int x = 0; x < img.width; x++) {
+      if (alpha(img.pixels[rowStart + x]) > 10) {
+        if (top == -1) top = y;
+        bottom = y;
+        break;
+      }
+    }
+  }
+  if (top == -1) {
+    top = 0;
+    bottom = img.height - 1;
+  }
+  return new int[]{ top, bottom };
+}
+
 class Player {
   PImage defaultImg, crouchImg;
   float x;
@@ -367,6 +392,14 @@ class Player {
   boolean crouching = false;
   float scale = 0.2;
 
+  // default.png and crouch.png share the same 928x928 canvas -- the crouch
+  // pose is drawn smaller and lower inside it rather than on a shorter
+  // canvas. Raw img.height is therefore identical for both and can't be used
+  // to tell how tall the character actually looks, so we scan each sprite's
+  // alpha channel once at load time for its real visible top/height instead.
+  float defaultVisTop, defaultVisHeight;
+  float crouchVisTop, crouchVisHeight;
+
   Player(float x) {
     this.x = x;
     this.y = groundY;
@@ -375,6 +408,22 @@ class Player {
   void load() {
     defaultImg = loadImage("default.png");
     crouchImg = loadImage("crouch.png");
+
+    int[] db = opaqueVerticalBounds(defaultImg);
+    defaultVisTop = db[0];
+    defaultVisHeight = db[1] - db[0] + 1;
+
+    int[] cb = opaqueVerticalBounds(crouchImg);
+    crouchVisTop = cb[0];
+    crouchVisHeight = cb[1] - cb[0] + 1;
+  }
+
+  // Real (screen-space) Y of the top of the crouching character's head --
+  // used by spawnObstacle() to place top-row obstacles relative to where the
+  // head actually is, not the padded canvas.
+  float crouchHeadTopY() {
+    float h = crouchImg.height * scale;
+    return (groundY - h) + crouchVisTop * scale;
   }
 
   void update() {
@@ -414,12 +463,15 @@ class Player {
     PImage s = currentSprite();
     float w = s.width * scale;
     float h = s.height * scale;
-    float inset = w * 0.2;
+    float visTop = (crouching ? crouchVisTop : defaultVisTop) * scale;
+    float visH = (crouching ? crouchVisHeight : defaultVisHeight) * scale;
+    float insetX = w * 0.2;
+    float insetY = visH * 0.2;
     return new Rectangle(
-      (int)(x + inset),
-      (int)(y - h + inset),
-      (int)(w - 2 * inset),
-      (int)(h - 2 * inset)
+      (int)(x + insetX),
+      (int)(y - h + visTop + insetY),
+      (int)(w - 2 * insetX),
+      (int)(visH - 2 * insetY)
     );
   }
 }
