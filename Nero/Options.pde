@@ -3,6 +3,13 @@ final float VOLUME_STEP = 0.1;
 
 PImage optionsPanelImg, cancelImg, saveImg, minusImg, plusImg, scaleImg;
 
+// Layout is computed once here (screen size never changes mid-run) instead
+// of every frame, which is also what let the DwellTargets below be created
+// only once instead of being rebuilt (and having their hover timers reset)
+// on every single frame.
+float optPanelX, optPanelY, optPanelW, optPanelH;
+float optMusicLabelY, optSfxLabelY, optLabelH;
+
 void loadOptionsAssets() {
   optionsPanelImg = loadImage("options-wrapper.png");
   cancelImg = loadImage("cancel.png");
@@ -10,11 +17,6 @@ void loadOptionsAssets() {
   minusImg = loadImage("minus.png");
   plusImg = loadImage("plus.png");
   scaleImg = loadImage("scale.png");
-}
-
-void drawOptions() {
-  drawSceneBackdrop();
-  drawTreesAndCat();
 
   if (optionsPanelImg == null) return;
 
@@ -31,58 +33,65 @@ void drawOptions() {
     panelW = panelH * imgRatio;
   }
 
-  float panelX = width / 2 - panelW / 2;
-  float panelY = height * 0.16;
-
-  image(optionsPanelImg, panelX, panelY, panelW, panelH);
+  optPanelX = width / 2 - panelW / 2;
+  optPanelY = height * 0.16;
+  optPanelW = panelW;
+  optPanelH = panelH;
 
   float headerRatio = 0.14;
   float bodyTopPad = 0.06;
   float bodyBottomPad = 0.06;
 
-  float bodyTop = panelY + panelH * (headerRatio + bodyTopPad);
-  float bodyBottom = panelY + panelH * (1 - bodyBottomPad);
+  float bodyTop = optPanelY + panelH * (headerRatio + bodyTopPad);
+  float bodyBottom = optPanelY + panelH * (1 - bodyBottomPad);
   float bodyH = bodyBottom - bodyTop;
 
-  // cada linha (label + slider) ocupa metade do corpo
   float rowH = bodyH / 2;
-  float labelH = rowH * 0.35;   // espaço reservado para "MUSIC VOLUME" / "SFX VOLUME"
-  float sliderH = rowH * 0.55;  // espaço reservado para a barra + botões
+  optLabelH = rowH * 0.35;
 
-  float musicLabelY = bodyTop;
-  float musicSliderY = musicLabelY + labelH;
+  optMusicLabelY = bodyTop;
+  float musicSliderY = optMusicLabelY + optLabelH;
 
-  float sfxLabelY = bodyTop + rowH;
-  float sfxSliderY = sfxLabelY + labelH;
+  optSfxLabelY = bodyTop + rowH;
+  float sfxSliderY = optSfxLabelY + optLabelH;
 
   float sidePad = panelW * 0.06;
   float btnH = height * 0.07;
   float minusW = (minusImg != null) ? btnH * (minusImg.width / (float) minusImg.height) : btnH;
   float plusW  = (plusImg  != null) ? btnH * (plusImg.width  / (float) plusImg.height)  : btnH;
 
-  musicMinusBtn = new DwellTarget(panelX + sidePad, musicSliderY, minusW, btnH);
-  musicPlusBtn  = new DwellTarget(panelX + panelW - sidePad - plusW, musicSliderY, plusW, btnH);
-  sfxMinusBtn   = new DwellTarget(panelX + sidePad, sfxSliderY, minusW, btnH);
-  sfxPlusBtn    = new DwellTarget(panelX + panelW - sidePad - plusW, sfxSliderY, plusW, btnH);
-
-  fill(HUD_BLACK);
-  textFont(uiFont);
-  textAlign(LEFT, TOP);
-  textSize(labelH * 0.7);
-  text("MUSIC VOLUME", panelX + sidePad, musicLabelY);
-  text("SFX VOLUME", panelX + sidePad, sfxLabelY);
-
-  drawVolumeSlider(musicMinusBtn, musicPlusBtn, getMusicVolume());
-  drawVolumeSlider(sfxMinusBtn, sfxPlusBtn, getSFXVolume());
+  musicMinusBtn = new DwellTarget(optPanelX + sidePad, musicSliderY, minusW, btnH);
+  musicPlusBtn  = new DwellTarget(optPanelX + panelW - sidePad - plusW, musicSliderY, plusW, btnH);
+  sfxMinusBtn   = new DwellTarget(optPanelX + sidePad, sfxSliderY, minusW, btnH);
+  sfxPlusBtn    = new DwellTarget(optPanelX + panelW - sidePad - plusW, sfxSliderY, plusW, btnH);
 
   float rectBtnH = height * 0.07;
   float cancelW = (cancelImg != null) ? rectBtnH * (cancelImg.width / (float) cancelImg.height) : width * 0.16;
   float saveW   = (saveImg   != null) ? rectBtnH * (saveImg.width   / (float) saveImg.height)   : width * 0.16;
 
-  float btnY = panelY + panelH + panelH * 0.08;
+  float btnY = optPanelY + panelH + panelH * 0.08;
 
-  cancelBtn = new DwellTarget(panelX, btnY, cancelW, rectBtnH);
-  saveBtn = new DwellTarget(panelX + panelW - saveW, btnY, saveW, rectBtnH);
+  cancelBtn = new DwellTarget(optPanelX, btnY, cancelW, rectBtnH);
+  saveBtn = new DwellTarget(optPanelX + panelW - saveW, btnY, saveW, rectBtnH);
+}
+
+void drawOptions() {
+  drawSceneBackdrop();
+  drawTreesAndCat();
+
+  if (optionsPanelImg == null) return;
+
+  image(optionsPanelImg, optPanelX, optPanelY, optPanelW, optPanelH);
+
+  fill(HUD_BLACK);
+  textFont(uiFont);
+  textAlign(LEFT, TOP);
+  textSize(optLabelH * 0.7);
+  text("MUSIC VOLUME", optPanelX + optPanelW * 0.06, optMusicLabelY);
+  text("SFX VOLUME", optPanelX + optPanelW * 0.06, optSfxLabelY);
+
+  drawVolumeSlider(musicMinusBtn, musicPlusBtn, getMusicVolume());
+  drawVolumeSlider(sfxMinusBtn, sfxPlusBtn, getSFXVolume());
 
   if (cancelImg != null) image(cancelImg, cancelBtn.x, cancelBtn.y, cancelBtn.w, cancelBtn.h);
   if (saveImg != null) image(saveImg, saveBtn.x, saveBtn.y, saveBtn.w, saveBtn.h);
