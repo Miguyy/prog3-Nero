@@ -5,27 +5,45 @@ void loadWinAssets() {
   catImg  = loadImage("cat-1.png");
 }
 
+// Text timeline: fades in (5500-6000), then HOLDS fully visible until
+// T_HOLD_END, then fades back out before the next level starts. Previously
+// the text finished fading in at 6000 and the very next frame kicked off
+// startNextLevel()/changeState(GAME), so it was only ever visible mid-fade
+// and never actually held on screen -- hence it looked like it vanished
+// almost instantly.
+final int T_INTRO_END      = 1500;
+final int T_TRANSITION_END = 3000;
+final int T_FADE_IN_START  = 5500;
+final int T_FADE_IN_END    = 6000;
+final int T_HOLD_END       = 8500;
+final int T_FADE_OUT_END   = 9000;
+
 void drawWin() {
   player.forceIdle = true;
   player.forcedImg = player.defaultImg;
   int t = millis() - stateEnterMillis;
-  
-  if (t < 1500) {
+
+  if (t < T_INTRO_END) {
     drawSceneBackdrop();
     drawTreeAndCatWin(width / 2, height - 80);
     player.display();
-  } else if (t < 3000) {
-    float p = constrain((t - 1500) / 1500.0, 0, 1);
-    float pSky = constrain((t - 1500) / 1500.0, 0, 1);
-    drawWinTransition(p, pSky);
-  } else if (t < 5500) {
+  } else if (t < T_TRANSITION_END) {
+    float p = constrain((t - T_INTRO_END) / float(T_TRANSITION_END - T_INTRO_END), 0, 1);
+    drawWinTransition(p, p);
+  } else if (t < T_FADE_IN_START) {
     drawWinFinalScene();
-  } else if (t < 6000) {
+  } else if (t < T_FADE_OUT_END) {
     drawWinFinalScene();
 
-    float fadeStart = 5500;
-    float fadeDur   = 500;
-    float textAlpha = constrain(map(t, fadeStart, fadeStart + fadeDur, 0, 255), 0, 255);
+    float textAlpha;
+    if (t < T_FADE_IN_END) {
+      textAlpha = map(t, T_FADE_IN_START, T_FADE_IN_END, 0, 255);
+    } else if (t < T_HOLD_END) {
+      textAlpha = 255;
+    } else {
+      textAlpha = map(t, T_HOLD_END, T_FADE_OUT_END, 255, 0);
+    }
+    textAlpha = constrain(textAlpha, 0, 255);
 
     fill(HUD_CREAM, textAlpha);
     textAlign(CENTER, CENTER);

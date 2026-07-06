@@ -12,6 +12,12 @@ float obstacleSpeed = 20;
 float spawnInterval = 2;
 float spawnTimer = 0;
 
+// Suppresses obstacle spawning for a moment right after a level starts
+// (fresh game or straight after the WIN transition drops you back into
+// GAME) so you're not instantly staring down a bubble the frame you land.
+final int LEVEL_GRACE_FRAMES = 120; // ~2 seconds at 60fps
+int levelGraceTimer = 0;
+
 // topRowY is no longer a fixed guess -- it's computed in loadBackground()
 // from the player's actual crouching height, so the top bubbles reliably
 // threaten a standing player and can only be dodged by ducking.
@@ -129,6 +135,7 @@ void startNextLevel() {
   obstacles.clear();
   spawnTimer = 0;
   levelTimer = 0;
+  levelGraceTimer = LEVEL_GRACE_FRAMES;
 }
 
 void resetGameFull() {
@@ -139,6 +146,7 @@ void resetGameFull() {
   obstacles.clear();
   spawnTimer = 0;
   levelTimer = 0;
+  levelGraceTimer = LEVEL_GRACE_FRAMES;
   if (player != null) {
     player.y = groundY;
     player.jumping = false;
@@ -148,10 +156,14 @@ void resetGameFull() {
 }
 
 void updateObstacles() {
-  spawnTimer++;
-  if (spawnTimer >= spawnInterval) {
-    spawnObstacle();
-    spawnTimer = 0;
+  if (levelGraceTimer > 0) {
+    levelGraceTimer--;
+  } else {
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) {
+      spawnObstacle();
+      spawnTimer = 0;
+    }
   }
 
   for (int i = obstacles.size() - 1; i >= 0; i--) {
@@ -441,7 +453,7 @@ class Player {
   // head actually is, not the padded canvas.
   float crouchHeadTopY() {
     float h = crouchImg.height * scale;
-    return (groundY - h) + (crouchBottomPad + crouchVisTop) * scale;
+    return (groundY - h) + (crouchBottomPad + crouchVisTop) * scale - 13;
   }
 
   void update() {
