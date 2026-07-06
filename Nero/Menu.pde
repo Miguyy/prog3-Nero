@@ -13,7 +13,10 @@ PImage[] menuBtnImgs = new PImage[4];
 void loadMenuAssets() {
 
   cursorImg = loadImage("cursor.png");
+  cursorImg.resize(100, 100); 
+
   clickImg = loadImage("click.png");
+  clickImg.resize(100, 100);
 
   treeImg = loadImage("tree.png");
 

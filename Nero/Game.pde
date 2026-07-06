@@ -90,6 +90,9 @@ void drawSceneBackdrop() {
 }
 
 void drawGame() {
+  player.forceIdle = false;
+  player.forcedImg = null;
+
   drawSkyAndClouds();
 
   updateObstacles();
@@ -384,21 +387,27 @@ int[] opaqueVerticalBounds(PImage img) {
 }
 
 class Player {
-  PImage defaultImg, crouchImg;
+  PImage defaultImg, crouchImg,
+         stepRightImg, stepLeftImg, gameOverImg;
+  PImage[] walkFrames;
+  int walkFrameIndex = 0;
+  int walkFrameInterval = 8;
   float x;
   float y;
   float velY = 0;
   boolean jumping = false;
   boolean crouching = false;
   float scale = 0.2;
+  boolean forceIdle = false;
+  PImage forcedImg = null;
 
   // default.png and crouch.png share the same 928x928 canvas -- the crouch
   // pose is drawn smaller and lower inside it rather than on a shorter
   // canvas. Raw img.height is therefore identical for both and can't be used
   // to tell how tall the character actually looks, so we scan each sprite's
   // alpha channel once at load time for its real visible top/height instead.
-  float defaultVisTop, defaultVisHeight;
-  float crouchVisTop, crouchVisHeight;
+  float defaultVisTop, defaultVisHeight, defaultBottomPad;
+  float crouchVisTop, crouchVisHeight, crouchBottomPad;
 
   Player(float x) {
     this.x = x;
@@ -408,14 +417,23 @@ class Player {
   void load() {
     defaultImg = loadImage("default.png");
     crouchImg = loadImage("crouch.png");
+    stepRightImg = loadImage("step-right.png");
+    stepLeftImg = loadImage("step-left.png");
+    gameOverImg = loadImage("game-over.png");
+    walkFrames = new PImage[]{ stepRightImg, stepLeftImg };
 
     int[] db = opaqueVerticalBounds(defaultImg);
     defaultVisTop = db[0];
     defaultVisHeight = db[1] - db[0] + 1;
+    defaultBottomPad = defaultImg.height - (db[1] + 1);
 
     int[] cb = opaqueVerticalBounds(crouchImg);
     crouchVisTop = cb[0];
     crouchVisHeight = cb[1] - cb[0] + 1;
+    crouchBottomPad = crouchImg.height - (cb[1] + 1);
+
+    println("default: img.height=" + defaultImg.height + " visTop=" + defaultVisTop + " visHeight=" + defaultVisHeight + " bottomPad=" + defaultBottomPad);
+    println("crouch:  img.height=" + crouchImg.height + " visTop=" + crouchVisTop + " visHeight=" + crouchVisHeight + " bottomPad=" + crouchBottomPad);
   }
 
   // Real (screen-space) Y of the top of the crouching character's head --
@@ -423,7 +441,7 @@ class Player {
   // head actually is, not the padded canvas.
   float crouchHeadTopY() {
     float h = crouchImg.height * scale;
-    return (groundY - h) + crouchVisTop * scale;
+    return (groundY - h) + (crouchBottomPad + crouchVisTop) * scale;
   }
 
   void update() {
@@ -445,31 +463,41 @@ class Player {
     } else {
       y = groundY;
     }
+
+    if (!jumping && !crouching) {
+      if (frameCount % walkFrameInterval == 0) {
+        walkFrameIndex = (walkFrameIndex + 1) % walkFrames.length;
+      }
+    }
   }
 
   PImage currentSprite() {
+    if (forceIdle) return (forcedImg != null) ? forcedImg : defaultImg;
     if (crouching) return crouchImg;
-    return defaultImg;
+    if (jumping) return defaultImg;
+    return walkFrames[walkFrameIndex];
   }
 
   void display() {
     PImage s = currentSprite();
     float w = s.width * scale;
     float h = s.height * scale;
-    image(s, x, y - h, w, h);
+    float bottomPad = (crouching ? crouchBottomPad : defaultBottomPad) * scale;
+    image(s, x, y - h + bottomPad - 13, w, h);
   }
 
   Rectangle getHitbox() {
     PImage s = currentSprite();
     float w = s.width * scale;
     float h = s.height * scale;
+    float bottomPad = (crouching ? crouchBottomPad : defaultBottomPad) * scale;
     float visTop = (crouching ? crouchVisTop : defaultVisTop) * scale;
     float visH = (crouching ? crouchVisHeight : defaultVisHeight) * scale;
     float insetX = w * 0.2;
     float insetY = visH * 0.2;
     return new Rectangle(
       (int)(x + insetX),
-      (int)(y - h + visTop + insetY),
+      (int)(y - h + bottomPad - 13 + visTop + insetY),
       (int)(w - 2 * insetX),
       (int)(visH - 2 * insetY)
     );

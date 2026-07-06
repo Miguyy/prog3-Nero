@@ -1,4 +1,6 @@
 void drawLose() {
+  player.forceIdle = true;
+  player.forcedImg = player.gameOverImg;
   int t = millis() - stateEnterMillis;
 
   if (t < 1500) {
@@ -9,9 +11,15 @@ void drawLose() {
     drawLoseTransition(p);
   } else if (t < 5500) {
     drawLoseTransition(1);
-    fill(220, 40, 60);
+
+    float fadeStart = 3000;
+    float fadeDur   = 600;
+    float textAlpha = constrain(map(t, fadeStart, fadeStart + fadeDur, 0, 255), 0, 255);
+
+    fill(220, 40, 60, textAlpha);
     textAlign(CENTER, CENTER);
     textFont(titleFont);
+    textSize(64);
     text("GAME OVER", width / 2, height * 0.8);
   } else {
     resetGameFull();

@@ -6,24 +6,36 @@ void loadWinAssets() {
 }
 
 void drawWin() {
+  player.forceIdle = true;
+  player.forcedImg = player.defaultImg;
   int t = millis() - stateEnterMillis;
   
-  if (t < 1000) {
+  if (t < 1500) {
     drawSceneBackdrop();
     drawTreeAndCatWin(width / 2, height - 80);
     player.display();
-  } else if (t < 2500) {
-    float p = constrain((t - 1000) / 1500.0, 0, 1);
-    float pSky = constrain((t - 1000) / 3000.0, 0, 1);
+  } else if (t < 3000) {
+    float p = constrain((t - 1500) / 1500.0, 0, 1);
+    float pSky = constrain((t - 1500) / 1500.0, 0, 1);
     drawWinTransition(p, pSky);
-  } else if (t < 5000) {
+  } else if (t < 5500) {
     drawWinFinalScene();
-    // fill(40, 28, 51);
-    // textAlign(CENTER, CENTER);
-    // textFont(titleFont);
-    // text("YOU WON!", width / 2, height * 0.75);
-    // textFont(uiFont);
-    // text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
+  } else if (t < 6000) {
+    drawWinFinalScene();
+
+    float fadeStart = 5500;
+    float fadeDur   = 500;
+    float textAlpha = constrain(map(t, fadeStart, fadeStart + fadeDur, 0, 255), 0, 255);
+
+    fill(HUD_CREAM, textAlpha);
+    textAlign(CENTER, CENTER);
+    textFont(titleFont);
+    textSize(64);
+    text("YOU WON!", width / 2, height * 0.75);
+
+    textFont(uiFont);
+    textSize(24);
+    text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
   } else {
     startNextLevel();
     changeState(GAME);
