@@ -9,12 +9,13 @@ color HUD_CREAM,
       HUD_BLUE,
       HUD_BLACK;
 
-final int MENU = 0;
-final int GAME = 1;
-final int SCORE = 2;
-final int OPTIONS = 3;
-final int WIN = 4;
-final int LOSE = 5;
+final int INTRO = 0;
+final int MENU = 1;
+final int GAME = 2;
+final int SCORE = 3;
+final int OPTIONS = 4;
+final int WIN = 5;
+final int LOSE = 6;
 
 int currentState = MENU;
 int previousState = MENU;
@@ -47,16 +48,19 @@ void setup() {
 
   loadFonts();
   loadBackground();
+  println("cloudsImg width: " + cloudsImg.width + " | screen width: " + width);
+  prepareSplitClouds();
   loadMenuAssets();
   loadScores();
   loadOptionsAssets();
+  loadIntroAssets();
   loadAudio();
   loadKinect();
 
-  skyImg.resize((int)width, (int)(height - 100));
+  skyImg.resize((int)width, (int)(height));
   floorImg.resize((int)width, (int)(height - 100));
 
-  changeState(MENU);
+  changeState(INTRO);
 }
 
 
@@ -72,6 +76,9 @@ void draw() {
   updateKinectInput();
 
   switch (currentState) {
+    case INTRO:
+      drawIntro();
+      break;
     case MENU:
       drawMenu();
       break;
@@ -232,4 +239,46 @@ void drawGroundFill(float topY) {
   noStroke();
   fill(#3D2C4D);
   rect(0, topY, width, height - topY);
+}
+
+PImage cloudsLeftHalf, cloudsRightHalf;
+int cloudsCutOffset = 65;
+
+// Corta clouds.png ao meio verticalmente, uma vez, para usar na animação
+// de "separação" das nuvens (ver drawCloudsSplitting).
+void prepareSplitClouds() {
+  int repeats = ceil(width / float(cloudsImg.width));
+
+  PGraphics wideClouds = createGraphics(cloudsImg.width * repeats, cloudsImg.height);
+  wideClouds.beginDraw();
+  wideClouds.clear();
+  for (int i = 0; i < repeats; i++) {
+    wideClouds.image(cloudsImg, i * cloudsImg.width, 0);
+  }
+  wideClouds.endDraw();
+
+  PImage wideImg = wideClouds.get(0, 0, width, cloudsImg.height);
+
+  int cloudsCutX = width / 2 + cloudsCutOffset;
+  cloudsLeftHalf = wideImg.get(0, 0, cloudsCutX, wideImg.height);
+  cloudsRightHalf = wideImg.get(cloudsCutX, 0, width - cloudsCutX, wideImg.height);
+}
+
+// Desenha as nuvens a "partirem-se" ao meio: a metade esquerda desliza para
+// a esquerda e desaparece, a metade direita desliza para a direita e
+// desaparece. Usado nas transições de Intro/Win/Lose.
+// baseX, baseY = posição original da fileira de nuvens completa
+// p = progresso da transição (0 a 1)
+// travelX = distância horizontal extra que cada metade percorre ao desaparecer
+// travelY = deslocamento vertical (para acompanhar o resto da cena, ex: descer com o céu)
+void drawCloudsSplitting(float baseX, float baseY, float p, float travelX, float travelY) {
+  if (cloudsLeftHalf == null || cloudsRightHalf == null) return;
+
+  float dx = lerp(0, travelX, p);
+  float a = lerp(255, 0, p);
+
+  tint(255, a);
+  image(cloudsLeftHalf, baseX - dx, baseY + travelY);
+  image(cloudsRightHalf, baseX + cloudsLeftHalf.width + dx, baseY + travelY);
+  noTint();
 }
