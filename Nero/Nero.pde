@@ -267,7 +267,7 @@ void drawGroundFill(float topY) {
 }
 
 PImage cloudsLeftHalf, cloudsRightHalf;
-int cloudsCutOffset = 65;
+int cloudsCutOffset = 62;
 
 // Corta clouds.png ao meio verticalmente, uma vez, para usar na animação
 // de "separação" das nuvens (ver drawCloudsSplitting).

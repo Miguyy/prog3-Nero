@@ -37,8 +37,8 @@ void playMusicForState(int state) {
 
   if (bgMusic != null) bgMusic.stop();
   bgMusic = target;
-  bgMusic.amp(musicVolume);
   bgMusic.loop();
+  bgMusic.amp(musicVolume);
 }
 
 SoundFile musicFileForState(int state) {
