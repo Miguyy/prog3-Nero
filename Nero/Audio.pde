@@ -1,51 +1,61 @@
 import processing.sound.*;
 
 SoundFile bgMusic;
-int bgMusicState = -1;
+SoundFile menuMusicFile, playMusicFile;
 HashMap<String, SoundFile> sfxCache = new HashMap<String, SoundFile>();
 
 float musicVolume = 0.7;
 float sfxVolume = 0.8;
 
+// All SoundFiles are preloaded here (same pattern as images/fonts elsewhere)
+// instead of being constructed lazily on first use. A freshly-constructed
+// SoundFile that gets amp()'d and played in that same call isn't guaranteed
+// to have finished initializing yet, which is what let play_music/death/
+// agachar/saltar silently ignore the volume sliders the first time each was
+// triggered -- menu_music (built once at startup) and botoes (reused across
+// many clicks) simply had enough time to warm up before anyone noticed.
 void loadAudio() {
+  menuMusicFile = new SoundFile(this, "menu_music.mp3");
+  playMusicFile = new SoundFile(this, "play_music.mp3");
+
+  preloadSFX("botoes.mp3");
+  preloadSFX("agachar.mp3");
+  preloadSFX("saltar.mp3");
+  preloadSFX("death.mp3");
+
   loadSettings();
 }
 
-void playMusicForState(int state) {
-  // Music files (music_menu.mp3/music_game.mp3) not delivered yet -- SoundFile
-  // throws from inside amp()/loop() when the file is missing, so this is disabled
-  // for now. Uncomment once the .mp3 files are added to data/.
-  /*
-  String file = musicFileForState(state);
-  if (file == null) return;
-  if (state == bgMusicState && bgMusic != null && bgMusic.isPlaying()) return;
-
-  if (bgMusic != null) bgMusic.stop();
-  bgMusic = new SoundFile(this, file);
-  bgMusic.amp(musicVolume);
-  bgMusic.loop();
-  bgMusicState = state;
-  */
+void preloadSFX(String name) {
+  sfxCache.put(name, new SoundFile(this, name));
 }
 
-String musicFileForState(int state) {
+void playMusicForState(int state) {
+  SoundFile target = musicFileForState(state);
+  if (target == null) return;
+  if (target == bgMusic && bgMusic.isPlaying()) return;
+
+  if (bgMusic != null) bgMusic.stop();
+  bgMusic = target;
+  bgMusic.amp(musicVolume);
+  bgMusic.loop();
+}
+
+SoundFile musicFileForState(int state) {
   switch (state) {
     case MENU:
     case SCORE:
     case OPTIONS:
-      return "music_menu.mp3";
+      return menuMusicFile;
     case GAME:
     case WIN:
     case LOSE:
-      return "music_game.mp3";
+      return playMusicFile;
   }
   return null;
 }
 
 void playSFX(String name) {
-  // SFX files (e.g. sfx_select.wav) not delivered yet -- disabled for now.
-  // Uncomment once they're added to data/.
-  /*
   SoundFile sfx = sfxCache.get(name);
   if (sfx == null) {
     sfx = new SoundFile(this, name);
@@ -53,7 +63,6 @@ void playSFX(String name) {
   }
   sfx.amp(sfxVolume);
   sfx.play();
-  */
 }
 
 float getMusicVolume() {

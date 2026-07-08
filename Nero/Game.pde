@@ -105,6 +105,7 @@ void drawGame() {
   player.display();
 
   if (checkCollisions(player)) {
+    playSFX("death.mp3");
     changeState(LOSE);
     return;
   }
@@ -423,11 +424,19 @@ class Player {
   }
 
   void update() {
+    boolean wasCrouching = crouching;
     crouching = isCrouching() && !jumping;
+    // Edge-triggered: only fires the instant the player goes from standing to
+    // crouching, not on every frame they hold the crouch (e.g. while dodging
+    // several bubbles in a row without standing back up in between).
+    if (crouching && !wasCrouching) {
+      playSFX("agachar.mp3");
+    }
 
     if (isJumpTriggered() && !jumping) {
       jumping = true;
       velY = JUMP_VELOCITY;
+      playSFX("saltar.mp3");
     }
 
     if (jumping) {
