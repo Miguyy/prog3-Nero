@@ -42,14 +42,30 @@ void drawWin() {
     textAlign(CENTER, CENTER);
     textFont(titleFont);
     textSize(64);
-    text("YOU WON!", width / 2, height * 0.75);
+    if (multiplayerRoundEnded) {
+      text("PLAYER " + multiplayerWinner + " WON!", width / 2, height * 0.75);
+    } else {
+      text("YOU WON!", width / 2, height * 0.75);
+    }
 
     textFont(uiFont);
     textSize(24);
-    text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
+    if (multiplayerRoundEnded) {
+      text("GREAT GAME! BACK TO MENU...", width / 2, height * 0.82);
+    } else {
+      text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
+    }
   } else {
-    startNextLevel();
-    changeState(GAME);
+    if (multiplayerRoundEnded) {
+      // A player died in multiplayer -- this ends the match instead of
+      // continuing to the next level.
+      multiplayerRoundEnded = false;
+      resetGameFull();
+      changeState(MENU);
+    } else {
+      startNextLevel();
+      changeState(GAME);
+    }
   }
 }
 

@@ -29,6 +29,15 @@ PFont titleFont;
 boolean fallbackUpHeld = false;
 boolean fallbackDownHeld = false;
 
+// ---------- Multiplayer (Kinect = P1, Arduino/keyboard = P2) ----------
+boolean multiplayerMode = false;
+boolean multiplayerRoundEnded = false; // true when WIN was reached because a player died, not by clearing a level
+int multiplayerWinner = 0;             // 1 or 2
+
+// Keyboard fallback for P2 when the Arduino isn't connected -- W = jump, S = crouch
+boolean p2KeyUpHeld = false;
+boolean p2KeyDownHeld = false;
+
 
 void setup() {
   fullScreen(P2D);
@@ -52,6 +61,7 @@ void setup() {
   loadOptionsAssets();
   loadAudio();
   loadKinect();
+  loadArduino();
 
   skyImg.resize((int)width, (int)(height - 100));
   floorImg.resize((int)width, (int)(height - 100));
@@ -166,12 +176,27 @@ void keyPressed() {
   if (keyCode == UP) fallbackUpHeld = true;
   if (keyCode == DOWN) fallbackDownHeld = true;
 
-  if (key == 'w' || key == 'W') changeState(WIN); // atalho de debug -- tirar antes de entregar
+  // 'M' toggles multiplayer on/off. Only allowed outside of GAME so you can't
+  // flip modes mid-run. Do it from the Menu before pressing START.
+  if ((key == 'm' || key == 'M') && currentState != GAME) {
+    multiplayerMode = !multiplayerMode;
+    playSFX("botoes.mp3");
+  }
+
+  // P2 keyboard fallback (used automatically whenever the Arduino isn't
+  // connected) -- W = jump, S = crouch. Only active in multiplayer.
+  if (multiplayerMode) {
+    if (key == 'w' || key == 'W') p2KeyUpHeld = true;
+    if (key == 's' || key == 'S') p2KeyDownHeld = true;
+  }
 }
 
 void keyReleased() {
   if (keyCode == UP) fallbackUpHeld = false;
   if (keyCode == DOWN) fallbackDownHeld = false;
+
+  if (key == 'w' || key == 'W') p2KeyUpHeld = false;
+  if (key == 's' || key == 'S') p2KeyDownHeld = false;
 }
 
 //--------------------------------//
