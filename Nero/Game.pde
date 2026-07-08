@@ -20,6 +20,7 @@ final int LEVEL_GRACE_FRAMES = 120; // ~2 seconds at 60fps
 int levelGraceTimer = 0;
 
 Player player;
+Player player2; // P2, only used when multiplayerMode is true
 float groundY;
 
 final float JUMP_VELOCITY = -18,
@@ -60,6 +61,12 @@ void loadBackground() {
   groundY = bottomRowY + 90;
   player = new Player(width * 0.08);
   player.load();
+
+  // P2 stands just to the right of P1 (see the reference screenshot). Shares
+  // the same sprites as P1 instead of reloading the PNGs a second time.
+  player2 = new Player(player.x + width * 0.09);
+  player2.isP2 = true;
+  player2.loadShared(player);
 
   // Top bubble's bottom edge is placed relative to the crouching player's
   // real (alpha-scanned) head height -- see Player.crouchHeadTopY() and
@@ -104,15 +111,51 @@ void drawGame() {
   player.update();
   player.display();
 
-  if (checkCollisions(player)) {
-    changeState(LOSE);
-    return;
+  if (multiplayerMode) {
+    player2.forceIdle = false;
+    player2.forcedImg = null;
+    player2.update();
+    player2.display();
+    drawPlayerLabels();
+
+    boolean p1Dead = checkCollisions(player);
+    boolean p2Dead = checkCollisions(player2);
+    if (p1Dead || p2Dead) {
+      playSFX("death.mp3");
+      buzzArduino();
+      multiplayerWinner = p1Dead ? 2 : 1; // the OTHER player wins
+      multiplayerRoundEnded = true;
+      changeState(WIN);
+      return;
+    }
+  } else {
+    if (checkCollisions(player)) {
+      playSFX("death.mp3");
+      changeState(LOSE);
+      return;
+    }
   }
 
   updateGameProgress();
 
   drawKinectPreview();
   drawGameHUD();
+}
+
+// "P1" / "P2" tags above each character's head, matching the reference mock.
+void drawPlayerLabels() {
+  textFont(uiFont);
+  textSize(height * 0.03);
+  fill(HUD_CREAM);
+  textAlign(CENTER, BOTTOM);
+
+  float p1LabelX = player.x + (player.defaultImg.width * player.scale) / 2;
+  float p1LabelY = player.y - (player.defaultImg.height * player.scale) - 10;
+  text("P1", p1LabelX, p1LabelY);
+
+  float p2LabelX = player2.x + (player2.defaultImg.width * player2.scale) / 2;
+  float p2LabelY = player2.y - (player2.defaultImg.height * player2.scale) - 10;
+  text("P2", p2LabelX, p2LabelY);
 }
 
 void updateGameProgress() {
@@ -147,6 +190,12 @@ void resetGameFull() {
     player.jumping = false;
     player.crouching = false;
     player.velY = 0;
+  }
+  if (player2 != null) {
+    player2.y = groundY;
+    player2.jumping = false;
+    player2.crouching = false;
+    player2.velY = 0;
   }
 }
 
@@ -229,6 +278,21 @@ void drawKinectPreview() {
 
   float headerRatio = 0.13;
   float bodyBottomPad = 0.03;
+
+  // The "IT'S YOU!" header text is baked into kinect.png itself, so in
+  // multiplayer we paint over just the header strip and relabel it "P1"
+  // (P1 is always the Kinect-controlled player).
+  if (multiplayerMode) {
+    noStroke();
+    fill(HUD_PINK);
+    rect(hudX, hudY, boxW, boxH * headerRatio);
+
+    fill(HUD_CREAM);
+    textAlign(CENTER, CENTER);
+    textFont(uiFont);
+    textSize(boxH * headerRatio * 0.55);
+    text("P1", hudX + boxW / 2, hudY + boxH * headerRatio / 2);
+  }
 
   float bodyX = hudX;
   float bodyY = hudY + boxH * headerRatio;
@@ -391,6 +455,11 @@ class Player {
           crouching = false,
           forceIdle = false;
 
+  // When true, this Player reads input from the Arduino joystick / W-S
+  // keyboard fallback (see Arduino.pde) instead of the Kinect. Only ever
+  // true for player2 in multiplayer.
+  boolean isP2 = false;
+
   Player(float x) {
     this.x = x;
     this.y = groundY;
@@ -414,6 +483,22 @@ class Player {
     gameOverVisTop = gm[0]; gameOverVisHeight = gm[1]; gameOverBottomPad = gm[2];
   }
 
+  // Reuses another Player's already-loaded sprites/metrics instead of
+  // hitting loadImage() again -- used for player2 so P2 looks identical to
+  // P1 without doubling asset loads.
+  void loadShared(Player other) {
+    defaultImg = other.defaultImg;
+    crouchImg = other.crouchImg;
+    stepRightImg = other.stepRightImg;
+    stepLeftImg = other.stepLeftImg;
+    gameOverImg = other.gameOverImg;
+    walkFrames = new PImage[]{ stepRightImg, stepLeftImg };
+
+    defaultVisTop = other.defaultVisTop; defaultVisHeight = other.defaultVisHeight; defaultBottomPad = other.defaultBottomPad;
+    crouchVisTop = other.crouchVisTop; crouchVisHeight = other.crouchVisHeight; crouchBottomPad = other.crouchBottomPad;
+    gameOverVisTop = other.gameOverVisTop; gameOverVisHeight = other.gameOverVisHeight; gameOverBottomPad = other.gameOverBottomPad;
+  }
+
   // Real (screen-space) Y of the top of the crouching character's head --
   // used by spawnObstacle() to place top-row obstacles relative to where the
   // head actually is, not the padded canvas.
@@ -423,11 +508,32 @@ class Player {
   }
 
   void update() {
-    crouching = isCrouching() && !jumping;
+    // P1 reads the Kinect (with UP/DOWN keyboard fallback baked into
+    // isCrouching()/isJumpTriggered() already). P2 reads the Arduino
+    // joystick, falling back to W/S on the keyboard -- see Arduino.pde.
+    boolean crouchInput;
+    boolean jumpInput;
+    if (isP2) {
+      crouchInput = isP2CrouchHeld();
+      jumpInput = isP2JumpHeld() && !crouchInput;
+    } else {
+      crouchInput = isCrouching();
+      jumpInput = isJumpTriggered();
+    }
 
-    if (isJumpTriggered() && !jumping) {
+    boolean wasCrouching = crouching;
+    crouching = crouchInput && !jumping;
+    // Edge-triggered: only fires the instant the player goes from standing to
+    // crouching, not on every frame they hold the crouch (e.g. while dodging
+    // several bubbles in a row without standing back up in between).
+    if (crouching && !wasCrouching) {
+      playSFX("agachar.mp3");
+    }
+
+    if (jumpInput && !jumping) {
       jumping = true;
       velY = JUMP_VELOCITY;
+      playSFX("saltar.mp3");
     }
 
     if (jumping) {

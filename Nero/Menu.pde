@@ -141,7 +141,7 @@ void drawPanel(float x, float y, float w, float h, float headerH) {
 }
 
 void onMenuButtonSelected(int i) {
-  playSFX("sfx_select.wav");
+  playSFX("botoes.mp3");
   switch (i) {
     case 0: // START
       resetGameFull();

@@ -99,15 +99,17 @@ void drawOptions() {
   PVector p = getHandScreenPos();
   boolean pointing = isHandPointing();
 
-  if (musicMinusBtn.update(p, pointing)) setMusicVolume(getMusicVolume() - VOLUME_STEP);
-  if (musicPlusBtn.update(p, pointing)) setMusicVolume(getMusicVolume() + VOLUME_STEP);
-  if (sfxMinusBtn.update(p, pointing)) setSFXVolume(getSFXVolume() - VOLUME_STEP);
-  if (sfxPlusBtn.update(p, pointing)) setSFXVolume(getSFXVolume() + VOLUME_STEP);
+  if (musicMinusBtn.update(p, pointing)) { playSFX("botoes.mp3"); setMusicVolume(getMusicVolume() - VOLUME_STEP); }
+  if (musicPlusBtn.update(p, pointing)) { playSFX("botoes.mp3"); setMusicVolume(getMusicVolume() + VOLUME_STEP); }
+  if (sfxMinusBtn.update(p, pointing)) { playSFX("botoes.mp3"); setSFXVolume(getSFXVolume() - VOLUME_STEP); }
+  if (sfxPlusBtn.update(p, pointing)) { playSFX("botoes.mp3"); setSFXVolume(getSFXVolume() + VOLUME_STEP); }
   if (cancelBtn.update(p, pointing)) {
+    playSFX("botoes.mp3");
     loadSettings();
     changeState(MENU);
   }
   if (saveBtn.update(p, pointing)) {
+    playSFX("botoes.mp3");
     saveSettings();
     changeState(MENU);
   }
@@ -141,14 +143,16 @@ void drawVolumeSlider(DwellTarget minusBtn, DwellTarget plusBtn, float value) {
 
 void optionsMousePressed() {
   PVector p = new PVector(mouseX, mouseY);
-  if (musicMinusBtn.contains(p)) setMusicVolume(getMusicVolume() - VOLUME_STEP);
-  else if (musicPlusBtn.contains(p)) setMusicVolume(getMusicVolume() + VOLUME_STEP);
-  else if (sfxMinusBtn.contains(p)) setSFXVolume(getSFXVolume() - VOLUME_STEP);
-  else if (sfxPlusBtn.contains(p)) setSFXVolume(getSFXVolume() + VOLUME_STEP);
+  if (musicMinusBtn.contains(p)) { playSFX("botoes.mp3"); setMusicVolume(getMusicVolume() - VOLUME_STEP); }
+  else if (musicPlusBtn.contains(p)) { playSFX("botoes.mp3"); setMusicVolume(getMusicVolume() + VOLUME_STEP); }
+  else if (sfxMinusBtn.contains(p)) { playSFX("botoes.mp3"); setSFXVolume(getSFXVolume() - VOLUME_STEP); }
+  else if (sfxPlusBtn.contains(p)) { playSFX("botoes.mp3"); setSFXVolume(getSFXVolume() + VOLUME_STEP); }
   else if (cancelBtn.contains(p)) {
+    playSFX("botoes.mp3");
     loadSettings();
     changeState(MENU);
   } else if (saveBtn.contains(p)) {
+    playSFX("botoes.mp3");
     saveSettings();
     changeState(MENU);
   }

@@ -104,11 +104,16 @@ void drawScore() {
 
   PVector p = getHandScreenPos();
   boolean selected = scoreMenuButton.update(p, isHandPointing());
-  if (selected) changeState(MENU);
+  if (selected) onScoreMenuButtonSelected();
+}
+
+void onScoreMenuButtonSelected() {
+  playSFX("botoes.mp3");
+  changeState(MENU);
 }
 
 void scoreMousePressed() {
   if (scoreMenuButton.contains(new PVector(mouseX, mouseY))) {
-    changeState(MENU);
+    onScoreMenuButtonSelected();
   }
 }
