@@ -40,7 +40,7 @@ void setup() {
   HUD_PINK  = color(217, 74, 145);
   HUD_YELLOW  = color(242, 208, 160);
   HUD_STEELBLUE = color(129, 153, 201);
-  HUD_PURPLE  = color(40, 28, 51);
+  HUD_PURPLE  = color(82, 64, 122);
   HUD_RED  = color(215, 30, 70);
   HUD_BLUE  = color(94, 209, 228);
   HUD_BLACK  = color(40, 28, 51);
@@ -50,7 +50,6 @@ void setup() {
   loadMenuAssets();
   loadScores();
   loadOptionsAssets();
-  loadWinAssets();
   loadAudio();
   loadKinect();
 
@@ -173,4 +172,64 @@ void keyPressed() {
 void keyReleased() {
   if (keyCode == UP) fallbackUpHeld = false;
   if (keyCode == DOWN) fallbackDownHeld = false;
+}
+
+//--------------------------------//
+//         🔧   UTILS             //
+//--------------------------------//
+
+// Calcula o alpha (0-255) de um fade in baseado no tempo decorrido.
+// t = tempo atual (ex: millis() - stateEnterMillis)
+// start = momento em que o fade deve começar
+// dur = duração do fade em ms
+float fadeAlpha(float t, float start, float dur) {
+  return constrain(map(t, start, start + dur, 0, 255), 0, 255);
+}
+
+// Scans an image's alpha channel for the first/last row containing a
+// non-transparent pixel. Usado pra encontrar a extensão vertical real de um
+// sprite quando o canvas tem padding transparente.
+int[] opaqueVerticalBounds(PImage img) {
+  img.loadPixels();
+  int top = -1;
+  int bottom = -1;
+  for (int y = 0; y < img.height; y++) {
+    int rowStart = y * img.width;
+    for (int x = 0; x < img.width; x++) {
+      if (alpha(img.pixels[rowStart + x]) > 10) {
+        if (top == -1) top = y;
+        bottom = y;
+        break;
+      }
+    }
+  }
+  if (top == -1) {
+    top = 0;
+    bottom = img.height - 1;
+  }
+  return new int[]{ top, bottom };
+}
+
+// Calcula o deslocamento (delta) a aplicar num translate() para uma
+// transição de posição de start -> target, dado o progresso p (0-1).
+float lerpDelta(float start, float target, float p) {
+  float current = lerp(start, target, p);
+  return start - current;
+}
+
+// Calcula as métricas verticais reais de um sprite (ignorando padding
+// transparente do canvas): topo visível, altura visível, e espaço vazio
+// abaixo dos pés. Devolve {visTop, visHeight, bottomPad}.
+float[] spriteVerticalMetrics(PImage img) {
+  int[] b = opaqueVerticalBounds(img);
+  float visTop = b[0];
+  float visHeight = b[1] - b[0] + 1;
+  float bottomPad = img.height - (b[1] + 1);
+  return new float[]{ visTop, visHeight, bottomPad };
+}
+
+void drawGroundFill(float topY) {
+  noStroke();
+  fill(#3D2C4D);
+  rect(0, topY, width, height - topY);
 }

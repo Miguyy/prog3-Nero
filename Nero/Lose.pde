@@ -12,9 +12,7 @@ void drawLose() {
   } else if (t < 5500) {
     drawLoseTransition(1);
 
-    float fadeStart = 3000;
-    float fadeDur   = 600;
-    float textAlpha = constrain(map(t, fadeStart, fadeStart + fadeDur, 0, 255), 0, 255);
+    float textAlpha = fadeAlpha(t, 3000, 600);
 
     fill(220, 40, 60, textAlpha);
     textAlign(CENTER, CENTER);
@@ -28,10 +26,10 @@ void drawLose() {
 }
 
 void drawLoseTransition(float p) {
-  background(#0A0A14);
+  background(HUD_BLACK);
 
   float floorY = lerp(loseFloorStartY, loseFloorTargetY, p);
-  float dy = loseFloorStartY - floorY;
+  float dy = lerpDelta(loseFloorStartY, loseFloorTargetY, p);
 
   pushMatrix();
   translate(0, -dy);
@@ -44,7 +42,5 @@ void drawLoseTransition(float p) {
   player.display();
   popMatrix();
 
-  noStroke();
-  fill(#3D2C4D);
-  rect(0, floorY + floorImg.height, width, height - (floorY + floorImg.height));
+  drawGroundFill(floorY + floorImg.height);
 }

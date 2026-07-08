@@ -1,10 +1,3 @@
-PImage catImg;
-int catFrameW;
-
-void loadWinAssets() {
-  catImg  = loadImage("cat-1.png");
-}
-
 // Text timeline: fades in (5500-6000), then HOLDS fully visible until
 // T_HOLD_END, then fades back out before the next level starts. Previously
 // the text finished fading in at 6000 and the very next frame kicked off
@@ -91,15 +84,11 @@ void drawTreeAndCatWin(float centerX, float floorLineY) {
 void drawWinFinalScene() {
   background(HUD_CREAM);
 
-  noStroke();
-  fill(#3D2C4D);
-  rect(0, height / 2, width, height - height / 2);
+  drawGroundFill(height / 2);
 
   float floorStartY = 100;
   float floorTargetY = height / 2 - floorImg.height + 100 ;
   image(floorImg, 0, floorTargetY);
-
-
 
   float dy = floorStartY - floorTargetY;
   pushMatrix();
@@ -123,7 +112,7 @@ void drawWinTransition(float p, float pSky) {
   float floorStartY = 100;
   float floorTargetY = height / 2 - floorImg.height + 100;
   float floorY = lerp(floorStartY, floorTargetY, p);
-  float groundDy = floorStartY - floorY;
+  float groundDy = lerpDelta(floorStartY, floorTargetY, p);
 
   pushMatrix();
   translate(0, -groundDy);
@@ -132,7 +121,5 @@ void drawWinTransition(float p, float pSky) {
   player.display();
   popMatrix();
 
-  noStroke();
-  fill(#3D2C4D);
-  rect(0, floorY + floorImg.height, width, height - (floorY + floorImg.height));
+  drawGroundFill(floorY + floorImg.height);
 }

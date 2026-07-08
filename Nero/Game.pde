@@ -1,6 +1,6 @@
 import java.awt.Rectangle;
 
-color bgColor = color(40, 28, 51);
+color bgColor = color(HUD_BLACK);
 
 PImage skyImg, floorImg, cloudsImg, kinectPreviewImg;
 ScrollingImage clouds;
@@ -8,9 +8,10 @@ ScrollingImage clouds;
 PImage[] bubbleImgs = new PImage[4];
 ArrayList<Obstacle> obstacles = new ArrayList<Obstacle>();
 
-float obstacleSpeed = 20;
-float spawnInterval = 2;
-float spawnTimer = 0;
+float obstacleSpeed = 20,
+      spawnInterval = 2,
+      spawnTimer = 0,
+      bottomRowY = 900;
 
 // Suppresses obstacle spawning for a moment right after a level starts
 // (fresh game or straight after the WIN transition drops you back into
@@ -18,28 +19,22 @@ float spawnTimer = 0;
 final int LEVEL_GRACE_FRAMES = 120; // ~2 seconds at 60fps
 int levelGraceTimer = 0;
 
-// topRowY is no longer a fixed guess -- it's computed in loadBackground()
-// from the player's actual crouching height, so the top bubbles reliably
-// threaten a standing player and can only be dodged by ducking.
-float topRowY;
-float bottomRowY = 900;
-
 Player player;
 float groundY;
 
-final float JUMP_VELOCITY = -18;
-final float GRAVITY = 0.9;
+final float JUMP_VELOCITY = -18,
+            GRAVITY = 0.9;
 
 int levelTimer = 0;
 final int LEVEL_DURATION_FRAMES = 60 * 45;
-final float SPEED_GROWTH = 1.15;
-final float INTERVAL_SHRINK = 0.9;
-final float MAX_SPEED = 12;
-final float MIN_INTERVAL = 30;
+final float SPEED_GROWTH = 1.15,
+            INTERVAL_SHRINK = 0.9,
+            MAX_SPEED = 12,
+            MIN_INTERVAL = 30;
 
 // Kinect preview HUD box (top-left)
-float hudX, hudY, hudW, hudH, hudHeaderH = 34;
-float hudMarginX, hudMarginY;
+float hudX, hudY, hudW, hudH,
+      hudMarginX, hudMarginY;
 
 void loadBackground() {
   hudMarginX = width * 0.04;
@@ -198,9 +193,9 @@ void spawnObstacle() {
     // head, inside the gap left by getHitbox()'s 20% vertical inset -- deep
     // enough to overlap a standing player's hitbox but still short of a
     // crouching player's (smaller) hitbox. See getHitbox() for the inset.
-    float dodgeMargin = -18;
+    float dodgeMargin = 18;
 
-    y = crouchHeadTopY - dodgeMargin - chosenImg.height;
+    y = crouchHeadTopY + dodgeMargin - chosenImg.height;
   }
 
   obstacles.add(new Obstacle(chosenImg, width, y, obstacleSpeed));
@@ -374,52 +369,27 @@ class Obstacle extends Scrollable {
   }
 }
 
-// Scans an image's alpha channel for the first/last row containing a
-// non-transparent pixel. Used to find a sprite's real visible extent when
-// its canvas has transparent padding that raw img.height can't account for.
-int[] opaqueVerticalBounds(PImage img) {
-  img.loadPixels();
-  int top = -1;
-  int bottom = -1;
-  for (int y = 0; y < img.height; y++) {
-    int rowStart = y * img.width;
-    for (int x = 0; x < img.width; x++) {
-      if (alpha(img.pixels[rowStart + x]) > 10) {
-        if (top == -1) top = y;
-        bottom = y;
-        break;
-      }
-    }
-  }
-  if (top == -1) {
-    top = 0;
-    bottom = img.height - 1;
-  }
-  return new int[]{ top, bottom };
-}
-
 class Player {
   PImage defaultImg, crouchImg,
-         stepRightImg, stepLeftImg, gameOverImg;
-  PImage[] walkFrames;
-  int walkFrameIndex = 0;
-  int walkFrameInterval = 8;
-  float x;
-  float y;
-  float velY = 0;
-  boolean jumping = false;
-  boolean crouching = false;
-  float scale = 0.2;
-  boolean forceIdle = false;
-  PImage forcedImg = null;
+         stepRightImg, stepLeftImg, gameOverImg,
+         forcedImg = null;
 
-  // default.png and crouch.png share the same 928x928 canvas -- the crouch
-  // pose is drawn smaller and lower inside it rather than on a shorter
-  // canvas. Raw img.height is therefore identical for both and can't be used
-  // to tell how tall the character actually looks, so we scan each sprite's
-  // alpha channel once at load time for its real visible top/height instead.
-  float defaultVisTop, defaultVisHeight, defaultBottomPad;
-  float crouchVisTop, crouchVisHeight, crouchBottomPad;
+  PImage[] walkFrames;
+
+  int walkFrameIndex = 0,
+      walkFrameInterval = 8;
+
+  float x, y,
+        velY = 0,
+        manualYAdjust = -13,
+        scale = 0.2,
+        defaultVisTop, defaultVisHeight, defaultBottomPad,
+        crouchVisTop, crouchVisHeight, crouchBottomPad,
+        gameOverVisTop, gameOverVisHeight, gameOverBottomPad;
+
+  boolean jumping = false, 
+          crouching = false,
+          forceIdle = false;
 
   Player(float x) {
     this.x = x;
@@ -434,18 +404,14 @@ class Player {
     gameOverImg = loadImage("game-over.png");
     walkFrames = new PImage[]{ stepRightImg, stepLeftImg };
 
-    int[] db = opaqueVerticalBounds(defaultImg);
-    defaultVisTop = db[0];
-    defaultVisHeight = db[1] - db[0] + 1;
-    defaultBottomPad = defaultImg.height - (db[1] + 1);
+    float[] dm = spriteVerticalMetrics(defaultImg);
+    defaultVisTop = dm[0]; defaultVisHeight = dm[1]; defaultBottomPad = dm[2];
 
-    int[] cb = opaqueVerticalBounds(crouchImg);
-    crouchVisTop = cb[0];
-    crouchVisHeight = cb[1] - cb[0] + 1;
-    crouchBottomPad = crouchImg.height - (cb[1] + 1);
+    float[] cm = spriteVerticalMetrics(crouchImg);
+    crouchVisTop = cm[0]; crouchVisHeight = cm[1]; crouchBottomPad = cm[2];
 
-    println("default: img.height=" + defaultImg.height + " visTop=" + defaultVisTop + " visHeight=" + defaultVisHeight + " bottomPad=" + defaultBottomPad);
-    println("crouch:  img.height=" + crouchImg.height + " visTop=" + crouchVisTop + " visHeight=" + crouchVisHeight + " bottomPad=" + crouchBottomPad);
+    float[] gm = spriteVerticalMetrics(gameOverImg);
+    gameOverVisTop = gm[0]; gameOverVisHeight = gm[1]; gameOverBottomPad = gm[2];
   }
 
   // Real (screen-space) Y of the top of the crouching character's head --
@@ -491,27 +457,45 @@ class Player {
   }
 
   void display() {
-    PImage s = currentSprite();
-    float w = s.width * scale;
-    float h = s.height * scale;
-    float bottomPad = (crouching ? crouchBottomPad : defaultBottomPad) * scale;
-    image(s, x, y - h + bottomPad - 13, w, h);
+      PImage s = currentSprite();
+      float w = s.width * scale;
+      float h = s.height * scale;
+
+      float bottomPad = (forceIdle && forcedImg == gameOverImg) ? gameOverBottomPad
+                      : crouching ? crouchBottomPad
+                      : defaultBottomPad;
+      bottomPad *= scale;
+
+      image(s, x, y - h + bottomPad + manualYAdjust, w, h);
   }
 
   Rectangle getHitbox() {
-    PImage s = currentSprite();
-    float w = s.width * scale;
-    float h = s.height * scale;
-    float bottomPad = (crouching ? crouchBottomPad : defaultBottomPad) * scale;
-    float visTop = (crouching ? crouchVisTop : defaultVisTop) * scale;
-    float visH = (crouching ? crouchVisHeight : defaultVisHeight) * scale;
-    float insetX = w * 0.2;
-    float insetY = visH * 0.2;
-    return new Rectangle(
-      (int)(x + insetX),
-      (int)(y - h + bottomPad - 13 + visTop + insetY),
-      (int)(w - 2 * insetX),
-      (int)(visH - 2 * insetY)
-    );
+      PImage s = currentSprite();
+      float w = s.width * scale;
+      float h = s.height * scale;
+
+      float bottomPad = (forceIdle && forcedImg == gameOverImg) ? gameOverBottomPad
+                      : crouching ? crouchBottomPad
+                      : defaultBottomPad;
+      bottomPad *= scale;
+
+      float visTop = (forceIdle && forcedImg == gameOverImg) ? gameOverVisTop
+                  : crouching ? crouchVisTop
+                  : defaultVisTop;
+      visTop *= scale;
+
+      float visH = (forceIdle && forcedImg == gameOverImg) ? gameOverVisHeight
+                : crouching ? crouchVisHeight
+                : defaultVisHeight;
+      visH *= scale;
+
+      float insetX = w * 0.2;
+      float insetY = visH * 0.2;
+      return new Rectangle(
+        (int)(x + insetX),
+        (int)(y - h + bottomPad + manualYAdjust + visTop + insetY),
+        (int)(w - 2 * insetX),
+        (int)(visH - 2 * insetY)
+      );
   }
 }
