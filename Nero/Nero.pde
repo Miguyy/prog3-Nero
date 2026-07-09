@@ -137,6 +137,19 @@ void changeState(int newState) {
 
     submitScore(score, level);
   }
+  if (newState == WIN && multiplayerRoundEnded) {
+    player.jumping = false;
+    player.crouching = false;
+    player.velY = 0;
+    player.y = groundY;
+
+    if (player2 != null) {
+      player2.jumping = false;
+      player2.crouching = false;
+      player2.velY = 0;
+      player2.y = groundY;
+    }
+  }
 }
 
 void loadFonts() {

@@ -2,7 +2,7 @@ import java.awt.Rectangle;
 
 color bgColor = color(HUD_BLACK);
 
-PImage skyImg, floorImg, cloudsImg, kinectPreviewImg;
+PImage skyImg, floorImg, cloudsImg, kinectPreviewImg, kinectPreviewMultiplayerImg;
 ScrollingImage clouds;
 
 PImage[] bubbleImgs = new PImage[4];
@@ -50,6 +50,7 @@ void loadBackground() {
   floorImg = loadImage("floor.png");
   cloudsImg = loadImage("clouds.png");
   kinectPreviewImg = loadImage("kinect.png");
+  kinectPreviewMultiplayerImg = loadImage("kinect-multiplayer.png");
 
   clouds = new ScrollingImage(cloudsImg, 50, 0.8);
 
@@ -63,10 +64,9 @@ void loadBackground() {
   player.load();
 
   // P2 stands just to the right of P1 (see the reference screenshot). Shares
-  // the same sprites as P1 instead of reloading the PNGs a second time.
   player2 = new Player(player.x + width * 0.09);
   player2.isP2 = true;
-  player2.loadShared(player);
+  player2.load2();
 
   // Top bubble's bottom edge is placed relative to the crouching player's
   // real (alpha-scanned) head height -- see Player.crouchHeadTopY() and
@@ -259,12 +259,13 @@ boolean checkCollisions(Player p) {
 }
 
 void drawKinectPreview() {
-  if (kinectPreviewImg == null) return;
+  PImage currentKinectImg = multiplayerMode ? kinectPreviewMultiplayerImg : kinectPreviewImg;
+  if (currentKinectImg == null) return;
 
   float maxW = hudW;
   float maxH = hudH;
 
-  float imgRatio = kinectPreviewImg.width / (float) kinectPreviewImg.height;
+  float imgRatio = currentKinectImg.width / (float) currentKinectImg.height;
 
   float boxW = maxW;
   float boxH = boxW / imgRatio;
@@ -274,25 +275,10 @@ void drawKinectPreview() {
     boxW = boxH * imgRatio;
   }
 
-  image(kinectPreviewImg, hudX, hudY, boxW, boxH);
+  image(currentKinectImg, hudX, hudY, boxW, boxH);
 
   float headerRatio = 0.13;
   float bodyBottomPad = 0.03;
-
-  // The "IT'S YOU!" header text is baked into kinect.png itself, so in
-  // multiplayer we paint over just the header strip and relabel it "P1"
-  // (P1 is always the Kinect-controlled player).
-  if (multiplayerMode) {
-    noStroke();
-    fill(HUD_PINK);
-    rect(hudX, hudY, boxW, boxH * headerRatio);
-
-    fill(HUD_CREAM);
-    textAlign(CENTER, CENTER);
-    textFont(uiFont);
-    textSize(boxH * headerRatio * 0.55);
-    text("P1", hudX + boxW / 2, hudY + boxH * headerRatio / 2);
-  }
 
   float bodyX = hudX;
   float bodyY = hudY + boxH * headerRatio;
@@ -470,6 +456,24 @@ class Player {
     crouchImg = loadImage("crouch.png");
     stepRightImg = loadImage("step-right.png");
     stepLeftImg = loadImage("step-left.png");
+    gameOverImg = loadImage("game-over.png");
+    walkFrames = new PImage[]{ stepRightImg, stepLeftImg };
+
+    float[] dm = spriteVerticalMetrics(defaultImg);
+    defaultVisTop = dm[0]; defaultVisHeight = dm[1]; defaultBottomPad = dm[2];
+
+    float[] cm = spriteVerticalMetrics(crouchImg);
+    crouchVisTop = cm[0]; crouchVisHeight = cm[1]; crouchBottomPad = cm[2];
+
+    float[] gm = spriteVerticalMetrics(gameOverImg);
+    gameOverVisTop = gm[0]; gameOverVisHeight = gm[1]; gameOverBottomPad = gm[2];
+  }
+
+  void load2() {
+    defaultImg = loadImage("default-1.png");
+    crouchImg = loadImage("crouch-1.png");
+    stepRightImg = loadImage("step-right-1.png");
+    stepLeftImg = loadImage("step-left-1.png");
     gameOverImg = loadImage("game-over.png");
     walkFrames = new PImage[]{ stepRightImg, stepLeftImg };
 

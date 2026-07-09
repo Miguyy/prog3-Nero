@@ -11,15 +11,18 @@ final int T_FADE_IN_END    = 6000;
 final int T_HOLD_END       = 8500;
 final int T_FADE_OUT_END   = 9000;
 
+Player winPlayer;
+
 void drawWin() {
-  player.forceIdle = true;
-  player.forcedImg = player.defaultImg;
+  winPlayer = (multiplayerRoundEnded && multiplayerWinner == 2) ? player2 : player;
+  winPlayer.forceIdle = true;
+  winPlayer.forcedImg = winPlayer.defaultImg;
   int t = millis() - stateEnterMillis;
 
   if (t < T_INTRO_END) {
     drawSceneBackdrop();
     drawTreeAndCatWin(width / 2, height - 80);
-    player.display();
+    winPlayer.display();
   } else if (t < T_TRANSITION_END) {
     float p = constrain((t - T_INTRO_END) / float(T_TRANSITION_END - T_INTRO_END), 0, 1);
     drawWinTransition(p, p);
@@ -110,7 +113,7 @@ void drawWinFinalScene() {
   pushMatrix();
   translate(0, -dy);
   drawTreeAndCatWin(width / 2, height - 80);
-  player.display();
+  winPlayer.display();
   popMatrix();
 }
 
@@ -134,7 +137,7 @@ void drawWinTransition(float p, float pSky) {
   translate(0, -groundDy);
   image(floorImg, 0, floorStartY);
   drawTreeAndCatWin(width / 2, height - 80);
-  player.display();
+  winPlayer.display();
   popMatrix();
 
   drawGroundFill(floorY + floorImg.height);
