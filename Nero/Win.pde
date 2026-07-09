@@ -53,11 +53,8 @@ void drawWin() {
 
     textFont(uiFont);
     textSize(24);
-    if (multiplayerRoundEnded) {
-      text("GREAT GAME! BACK TO MENU...", width / 2, height * 0.82);
-    } else {
-      text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
-    }
+    text("YOU FOUND NERO, TIME TO GO HOME", width / 2, height * 0.82);
+    
   } else {
     if (multiplayerRoundEnded) {
       // A player died in multiplayer -- this ends the match instead of
