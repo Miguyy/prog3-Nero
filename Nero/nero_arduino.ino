@@ -2,7 +2,7 @@
   NERO -- Arduino Uno R3 controller for Player 2
   =================================================
 
-  Wiring (matches what you described):
+  Wiring:
     Joystick module:
       GND  -> GND
       +5V  -> 5V
